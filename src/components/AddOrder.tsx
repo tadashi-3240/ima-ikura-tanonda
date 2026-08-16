@@ -5,6 +5,7 @@ import type { NewOrder, ParsedOrder } from '../types/order'
 import { ConfirmCard } from './ConfirmCard'
 import { ManualForm } from './ManualForm'
 import { MicButton } from './MicButton'
+import { VoiceField } from './VoiceField'
 
 type Mode = 'quick' | 'confirm' | 'manual'
 
@@ -131,8 +132,9 @@ export function AddOrder({ onAdd }: Props) {
             }}
           >
             <div className="flex items-center gap-2">
-              <input
+              <VoiceField
                 value={text}
+                showCaret={speech.listening}
                 readOnly={speech.listening}
                 inputMode={speech.listening ? 'none' : 'text'}
                 onChange={(event) => {
@@ -144,7 +146,7 @@ export function AddOrder({ onAdd }: Props) {
                 enterKeyHint="done"
                 autoCapitalize="none"
                 autoComplete="off"
-                className={`h-14 min-w-0 flex-1 rounded-2xl border bg-card px-4 text-base ${
+                className={`h-14 rounded-2xl border bg-card text-base ${
                   speech.listening ? 'border-gold' : 'border-line'
                 }`}
               />

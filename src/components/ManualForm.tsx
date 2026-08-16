@@ -5,6 +5,7 @@ import { parseOrderText } from '../lib/parseOrder'
 import type { NewOrder } from '../types/order'
 import { MicButton } from './MicButton'
 import { QuantityStepper } from './QuantityStepper'
+import { VoiceField } from './VoiceField'
 
 type Props = {
   initial?: Partial<NewOrder>
@@ -62,12 +63,15 @@ export function ManualForm({ initial, submitLabel = '追加', onSubmit, onCancel
       <label className="block">
         <span className="text-sm text-muted">商品名</span>
         <div className="mt-1 flex items-center gap-2">
-          <input
+          <VoiceField
             value={name}
+            showCaret={speech.listening}
+            padClass="px-3"
+            padPx={12}
             readOnly={speech.listening}
             inputMode={speech.listening ? 'none' : 'text'}
             onChange={(event) => setName(event.target.value)}
-            className={`h-12 min-w-0 flex-1 rounded-xl border bg-surface px-3 ${
+            className={`h-12 rounded-xl border bg-surface ${
               speech.listening ? 'border-gold' : 'border-line'
             }`}
             autoComplete="off"
