@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { useSpeechInput } from '../hooks/useSpeechInput'
 import { parseOrderText } from '../lib/parseOrder'
-import { isSpeechAvailable, startListening } from '../lib/speech'
 import type { NewOrder, ParsedOrder } from '../types/order'
 import { ConfirmCard } from './ConfirmCard'
 import { ManualForm } from './ManualForm'
+import { MicButton } from './MicButton'
 
 type Mode = 'quick' | 'confirm' | 'manual'
 
@@ -15,23 +16,30 @@ export function AddOrder({ onAdd }: Props) {
   const [text, setText] = useState('')
   const [mode, setMode] = useState<Mode>('quick')
   const [parsed, setParsed] = useState<ParsedOrder | null>(null)
-  const [listening, setListening] = useState(false)
-  const [error, setError] = useState('')
   const [fromVoice, setFromVoice] = useState(false)
-  const stopRef = useRef<(() => void) | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const speechOk = isSpeechAvailable()
 
-  useEffect(() => {
-    return () => stopRef.current?.()
-  }, [])
+  const speech = useSpeechInput({
+    onPreview: (preview) => setText(preview),
+    onFinal: (finalText) => {
+      setText(finalText)
+      const result = parseOrderText(finalText)
+      if (!result) {
+        speech.setError('聞き取れました。金額を含めて修正してください')
+        setMode('quick')
+        return
+      }
+      setParsed(result)
+      setMode(result.name ? 'confirm' : 'manual')
+    },
+  })
 
   const resetQuick = () => {
     setMode('quick')
     setParsed(null)
     setText('')
-    setError('')
     setFromVoice(false)
+    speech.setError('')
+    speech.stop()
   }
 
   const addParsed = (item: ParsedOrder) => {
@@ -47,10 +55,10 @@ export function AddOrder({ onAdd }: Props) {
   const submitText = () => {
     const result = parseOrderText(text)
     if (!result) {
-      setError('商品名と金額を入力してください。例: ビール650円を2つ')
+      speech.setError('商品名と金額を入力してください。例: ビール650円を2つ')
       return
     }
-    setError('')
+    speech.setError('')
     if (fromVoice || !result.name) {
       setParsed(result)
       setMode(result.name ? 'confirm' : 'manual')
@@ -59,48 +67,9 @@ export function AddOrder({ onAdd }: Props) {
     addParsed(result)
   }
 
-  const focusInput = () => {
-    const el = inputRef.current
-    if (!el) return
-    el.focus()
-    const len = el.value.length
-    try {
-      el.setSelectionRange(len, len)
-    } catch {
-      /* ignore unsupported selection */
-    }
-  }
-
   const startMic = () => {
-    focusInput()
-    setError('')
     setFromVoice(true)
-    setListening(true)
-    stopRef.current = startListening({
-      onPreview: (preview) => setText(preview),
-      onFinal: (finalText) => {
-        setText(finalText)
-        const result = parseOrderText(finalText)
-        if (!result) {
-          setError('聞き取れました。金額を含めて修正してください')
-          setMode('quick')
-          return
-        }
-        setParsed(result)
-        setMode(result.name ? 'confirm' : 'manual')
-      },
-      onError: (message) => setError(message),
-      onEnd: () => {
-        setListening(false)
-        stopRef.current = null
-      },
-    })
-  }
-
-  const stopMic = () => {
-    stopRef.current?.()
-    stopRef.current = null
-    setListening(false)
+    speech.start()
   }
 
   return (
@@ -138,41 +107,31 @@ export function AddOrder({ onAdd }: Props) {
           >
             <div className="flex items-center gap-2">
               <input
-                ref={inputRef}
                 value={text}
+                readOnly={speech.listening}
+                inputMode={speech.listening ? 'none' : 'text'}
                 onChange={(event) => {
                   setText(event.target.value)
-                  if (error) setError('')
+                  if (speech.error) speech.setError('')
                 }}
                 placeholder="ビール650円を2つ"
                 aria-label="注文"
                 enterKeyHint="done"
                 autoCapitalize="none"
                 autoComplete="off"
-                className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-card px-4 text-base"
+                className={`h-14 min-w-0 flex-1 rounded-2xl border bg-card px-4 text-base ${
+                  speech.listening ? 'border-gold' : 'border-line'
+                }`}
               />
-              {speechOk && (
-                <button
-                  type="button"
-                  aria-label={listening ? '音声入力を止める' : '音声で入力'}
-                  className={`flex size-14 shrink-0 items-center justify-center rounded-2xl border text-xl ${
-                    listening
-                      ? 'border-gold bg-gold text-bg'
-                      : 'border-line bg-card text-gold'
-                  }`}
-                  onPointerDown={() => focusInput()}
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    focusInput()
-                  }}
-                  onClick={listening ? stopMic : startMic}
-                >
-                  {listening ? '■' : '🎤'}
-                </button>
+              {speech.available && (
+                <MicButton
+                  listening={speech.listening}
+                  onToggle={speech.listening ? speech.stop : startMic}
+                />
               )}
             </div>
-            {listening ? (
-              <p className="text-sm text-gold">聞いています。話してから少し待つと文字になります。</p>
+            {speech.listening ? (
+              <p className="text-sm text-gold">聞いています。話してください。</p>
             ) : null}
             <button
               type="submit"
@@ -182,11 +141,12 @@ export function AddOrder({ onAdd }: Props) {
             </button>
           </form>
           <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="min-h-5 text-sm text-danger">{error}</p>
+            <p className="min-h-5 text-sm text-danger">{speech.error}</p>
             <button
               type="button"
               className="text-sm text-muted underline"
               onClick={() => {
+                speech.stop()
                 setParsed(null)
                 setMode('manual')
               }}

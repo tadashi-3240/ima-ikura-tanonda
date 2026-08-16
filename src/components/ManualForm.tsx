@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { useSpeechInput } from '../hooks/useSpeechInput'
 import { parseYenInput } from '../lib/money'
+import { parseOrderText } from '../lib/parseOrder'
 import type { NewOrder } from '../types/order'
+import { MicButton } from './MicButton'
 import { QuantityStepper } from './QuantityStepper'
 
 type Props = {
@@ -17,6 +20,22 @@ export function ManualForm({ initial, submitLabel = '追加', onSubmit, onCancel
   )
   const [quantity, setQuantity] = useState(initial?.quantity ?? 1)
   const [error, setError] = useState('')
+
+  const applySpoken = (spoken: string) => {
+    const result = parseOrderText(spoken)
+    if (!result) {
+      setName(spoken)
+      return
+    }
+    if (result.name) setName(result.name)
+    if (result.unitPrice > 0) setPrice(String(result.unitPrice))
+    if (result.quantity >= 1) setQuantity(result.quantity)
+  }
+
+  const speech = useSpeechInput({
+    onPreview: applySpoken,
+    onFinal: applySpoken,
+  })
 
   const submit = () => {
     const trimmed = name.trim()
@@ -42,12 +61,24 @@ export function ManualForm({ initial, submitLabel = '追加', onSubmit, onCancel
     >
       <label className="block">
         <span className="text-sm text-muted">商品名</span>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          className="mt-1 h-12 w-full rounded-xl border border-line bg-surface px-3"
-          autoComplete="off"
-        />
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            value={name}
+            readOnly={speech.listening}
+            inputMode={speech.listening ? 'none' : 'text'}
+            onChange={(event) => setName(event.target.value)}
+            className={`h-12 min-w-0 flex-1 rounded-xl border bg-surface px-3 ${
+              speech.listening ? 'border-gold' : 'border-line'
+            }`}
+            autoComplete="off"
+          />
+          {speech.available && (
+            <MicButton
+              listening={speech.listening}
+              onToggle={speech.listening ? speech.stop : speech.start}
+            />
+          )}
+        </div>
       </label>
       <label className="block">
         <span className="text-sm text-muted">単価</span>
@@ -64,7 +95,10 @@ export function ManualForm({ initial, submitLabel = '追加', onSubmit, onCancel
           <QuantityStepper value={quantity} onChange={(value) => setQuantity(Math.max(1, value))} />
         </div>
       </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {speech.listening ? (
+        <p className="text-sm text-gold">聞いています。話してください。</p>
+      ) : null}
+      {(error || speech.error) && <p className="text-sm text-danger">{error || speech.error}</p>}
       <div className="flex gap-2">
         <button type="submit" className="h-14 flex-1 rounded-2xl bg-gold text-lg font-bold text-bg">
           {submitLabel}
