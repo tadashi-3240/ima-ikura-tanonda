@@ -2,12 +2,11 @@ import { useRef, useState } from 'react'
 import { useSpeechInput } from '../hooks/useSpeechInput'
 import { parseOrderText } from '../lib/parseOrder'
 import type { NewOrder, ParsedOrder } from '../types/order'
-import { ConfirmCard } from './ConfirmCard'
 import { ManualForm } from './ManualForm'
 import { MicButton } from './MicButton'
 import { VoiceField } from './VoiceField'
 
-type Mode = 'quick' | 'confirm' | 'manual'
+type Mode = 'quick' | 'manual'
 
 type Props = {
   onAdd: (item: NewOrder) => void
@@ -19,28 +18,34 @@ export function AddOrder({ onAdd }: Props) {
   const [parsed, setParsed] = useState<ParsedOrder | null>(null)
   const [fromVoice, setFromVoice] = useState(false)
   const modeRef = useRef(mode)
+  const skipDuplicateFinalRef = useRef(false)
   modeRef.current = mode
 
   const speech = useSpeechInput({
     onPreview: (preview) => {
       if (modeRef.current !== 'quick') return
+      skipDuplicateFinalRef.current = false
       setText(preview)
     },
     onFinal: (finalText) => {
       if (modeRef.current !== 'quick') return
+      if (skipDuplicateFinalRef.current) return
       setText(finalText)
       const result = parseOrderText(finalText)
       if (!result) {
         speech.setError('聞き取れました。金額を含めて修正してください')
         return
       }
-      setParsed(result)
       if (!result.name) {
         speech.stop()
+        setParsed(result)
         setMode('manual')
         return
       }
-      setMode('confirm')
+      skipDuplicateFinalRef.current = true
+      onAdd(result)
+      setText('')
+      speech.setError('')
     },
   })
 
@@ -76,16 +81,12 @@ export function AddOrder({ onAdd }: Props) {
       return
     }
     speech.setError('')
-    if (fromVoice || !result.name) {
-      setParsed(result)
-      setMode(result.name ? 'confirm' : 'manual')
-      return
-    }
     addParsed(result)
   }
 
   const startMic = () => {
     setFromVoice(true)
+    skipDuplicateFinalRef.current = false
     speech.start()
   }
 
@@ -96,17 +97,6 @@ export function AddOrder({ onAdd }: Props) {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 px-3 pt-3 pb-safe backdrop-blur-md">
-      {mode === 'confirm' && parsed && (
-        <ConfirmCard
-          parsed={parsed}
-          onAdd={() => addParsed(parsed)}
-          onEdit={() => {
-            speech.stop()
-            setMode('manual')
-          }}
-        />
-      )}
-
       {mode === 'manual' && (
         <div className="rounded-2xl border border-line bg-card p-4">
           <p className="mb-3 font-semibold">手入力</p>
@@ -121,14 +111,13 @@ export function AddOrder({ onAdd }: Props) {
         </div>
       )}
 
-      {mode !== 'manual' && (
+      {mode === 'quick' && (
         <>
           <form
-            className={`space-y-2 ${mode === 'confirm' ? 'mt-3' : ''}`}
+            className="space-y-2"
             onSubmit={(event) => {
               event.preventDefault()
-              if (mode === 'confirm' && parsed) addParsed(parsed)
-              else submitText()
+              submitText()
             }}
           >
             <div className="flex items-center gap-2">
@@ -158,16 +147,14 @@ export function AddOrder({ onAdd }: Props) {
               )}
             </div>
             {speech.listening ? (
-              <p className="text-sm text-gold">聞いています。追加したあとも続けて話せます。</p>
+              <p className="text-sm text-gold">聞いています。通ったらすぐ追加します。</p>
             ) : null}
-            {mode === 'quick' && (
-              <button
-                type="submit"
-                className="h-14 w-full rounded-2xl bg-gold text-lg font-bold text-bg"
-              >
-                追加
-              </button>
-            )}
+            <button
+              type="submit"
+              className="h-14 w-full rounded-2xl bg-gold text-lg font-bold text-bg"
+            >
+              追加
+            </button>
           </form>
           <div className="mt-2 flex items-center justify-between gap-3">
             <p className="min-h-5 text-sm text-danger">{speech.error}</p>
