@@ -20,15 +20,18 @@ export default function App() {
   } = useOrders()
   const [confirmReset, setConfirmReset] = useState(false)
   const total = grandTotal(state.orders)
+  const compactTotal = state.orders.length > 2
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-3xl bg-bg pb-44 pt-safe">
       <header className="px-4 pt-5 text-center">
         <h1 className="text-2xl font-bold tracking-wide sm:text-3xl">今いくら頼んだ？</h1>
-        <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
+        {compactTotal ? null : (
+          <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
+        )}
       </header>
 
-      <TotalDisplay total={total} />
+      <TotalDisplay total={total} compact={compactTotal} />
       <BudgetPanel budget={state.budget} total={total} onChange={changeBudget} />
 
       <div className="mb-4 flex items-center justify-between px-4">
