@@ -96,7 +96,7 @@ export function AddOrder({ onAdd }: Props) {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 px-3 pt-3 pb-safe backdrop-blur-md">
+    <div className="shrink-0 border-t border-line bg-bg px-3 pt-3 pb-safe">
       {mode === 'manual' && (
         <div className="rounded-2xl border border-line bg-card p-4">
           <p className="mb-3 font-semibold">手入力</p>

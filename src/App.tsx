@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AddOrder } from './components/AddOrder'
 import { BudgetPanel } from './components/BudgetPanel'
 import { OrderList } from './components/OrderList'
@@ -19,12 +19,20 @@ export default function App() {
     canUndo,
   } = useOrders()
   const [confirmReset, setConfirmReset] = useState(false)
+  const scrollerRef = useRef<HTMLDivElement>(null)
   const total = grandTotal(state.orders)
   const compactTotal = state.orders.length > 2
+  const lastOrder = state.orders.at(-1)
+
+  useEffect(() => {
+    const root = scrollerRef.current
+    if (!root || !lastOrder) return
+    root.scrollTo({ top: root.scrollHeight })
+  }, [lastOrder?.id, lastOrder?.quantity, state.orders.length])
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-3xl bg-bg pb-44">
-      <div className="sticky top-0 z-20 border-b border-line/50 bg-bg/95 pt-safe backdrop-blur-md">
+    <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-bg">
+      <div className="shrink-0 border-b border-line/50 bg-bg pt-safe">
         <header className={`px-4 text-center ${compactTotal ? 'pt-2' : 'pt-4'}`}>
           <h1
             className={`font-bold tracking-wide ${
@@ -40,32 +48,34 @@ export default function App() {
         <TotalDisplay total={total} compact={compactTotal} />
       </div>
 
-      <BudgetPanel budget={state.budget} total={total} onChange={changeBudget} />
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-3">
+        <BudgetPanel budget={state.budget} total={total} onChange={changeBudget} />
 
-      <div className="mb-4 flex items-center justify-between px-4">
-        <button
-          type="button"
-          className="h-11 rounded-xl px-3 text-muted disabled:opacity-30"
-          disabled={!canUndo}
-          onClick={undo}
-        >
-          元に戻す
-        </button>
-        <button
-          type="button"
-          className="h-11 rounded-xl border border-line px-4 text-sm"
-          onClick={() => setConfirmReset(true)}
-        >
-          新しい会計
-        </button>
+        <div className="mb-4 flex items-center justify-between px-4">
+          <button
+            type="button"
+            className="h-11 rounded-xl px-3 text-muted disabled:opacity-30"
+            disabled={!canUndo}
+            onClick={undo}
+          >
+            元に戻す
+          </button>
+          <button
+            type="button"
+            className="h-11 rounded-xl border border-line px-4 text-sm"
+            onClick={() => setConfirmReset(true)}
+          >
+            新しい会計
+          </button>
+        </div>
+
+        <OrderList
+          orders={state.orders}
+          onQuantity={changeQuantity}
+          onUpdate={update}
+          onRemove={remove}
+        />
       </div>
-
-      <OrderList
-        orders={state.orders}
-        onQuantity={changeQuantity}
-        onUpdate={update}
-        onRemove={remove}
-      />
 
       <AddOrder onAdd={add} />
 
