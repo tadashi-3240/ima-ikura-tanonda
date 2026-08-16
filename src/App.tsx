@@ -23,15 +23,23 @@ export default function App() {
   const compactTotal = state.orders.length > 2
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-3xl bg-bg pb-44 pt-safe">
-      <header className="px-4 pt-5 text-center">
-        <h1 className="text-2xl font-bold tracking-wide sm:text-3xl">今いくら頼んだ？</h1>
-        {compactTotal ? null : (
-          <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
-        )}
-      </header>
+    <div className="mx-auto min-h-dvh w-full max-w-3xl bg-bg pb-44">
+      <div className="sticky top-0 z-20 border-b border-line/50 bg-bg/95 pt-safe backdrop-blur-md">
+        <header className={`px-4 text-center ${compactTotal ? 'pt-2' : 'pt-4'}`}>
+          <h1
+            className={`font-bold tracking-wide ${
+              compactTotal ? 'text-base sm:text-lg' : 'text-2xl sm:text-3xl'
+            }`}
+          >
+            今いくら頼んだ？
+          </h1>
+          {compactTotal ? null : (
+            <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
+          )}
+        </header>
+        <TotalDisplay total={total} compact={compactTotal} />
+      </div>
 
-      <TotalDisplay total={total} compact={compactTotal} />
       <BudgetPanel budget={state.budget} total={total} onChange={changeBudget} />
 
       <div className="mb-4 flex items-center justify-between px-4">
