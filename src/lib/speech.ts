@@ -29,6 +29,7 @@ export function startListening(handlers: ListenHandlers): () => void {
   let stopped = false
   let silenceTimer: ReturnType<typeof setTimeout> | null = null
   let lastFinal = ''
+  let consumed = 0
 
   const clearSilence = () => {
     if (silenceTimer) {
@@ -48,10 +49,17 @@ export function startListening(handlers: ListenHandlers): () => void {
     }
   }
 
+  const commitUtterance = (resultCount: number) => {
+    consumed = resultCount
+    const text = lastFinal.trim()
+    lastFinal = ''
+    if (text) handlers.onFinal(text)
+  }
+
   recognition.onresult = (event: SpeechRecognitionEvent) => {
     let preview = ''
     let finalText = ''
-    for (let i = 0; i < event.results.length; i += 1) {
+    for (let i = consumed; i < event.results.length; i += 1) {
       const result = event.results[i]
       const transcript = result[0]?.transcript ?? ''
       if (result.isFinal) finalText += transcript
@@ -62,7 +70,7 @@ export function startListening(handlers: ListenHandlers): () => void {
     if (finalText.trim()) {
       lastFinal = finalText.trim()
       clearSilence()
-      silenceTimer = setTimeout(() => finish(), 1200)
+      silenceTimer = setTimeout(() => commitUtterance(event.results.length), 1200)
     }
   }
 
@@ -82,6 +90,16 @@ export function startListening(handlers: ListenHandlers): () => void {
 
   recognition.onend = () => {
     clearSilence()
+    if (!stopped) {
+      consumed = 0
+      lastFinal = ''
+      try {
+        recognition.start()
+        return
+      } catch {
+        stopped = true
+      }
+    }
     const text = lastFinal.trim()
     if (text) handlers.onFinal(text)
     handlers.onEnd()

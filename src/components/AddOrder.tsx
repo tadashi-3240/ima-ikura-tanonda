@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSpeechInput } from '../hooks/useSpeechInput'
 import { parseOrderText } from '../lib/parseOrder'
 import type { NewOrder, ParsedOrder } from '../types/order'
@@ -17,39 +17,55 @@ export function AddOrder({ onAdd }: Props) {
   const [mode, setMode] = useState<Mode>('quick')
   const [parsed, setParsed] = useState<ParsedOrder | null>(null)
   const [fromVoice, setFromVoice] = useState(false)
+  const modeRef = useRef(mode)
+  modeRef.current = mode
 
   const speech = useSpeechInput({
-    onPreview: (preview) => setText(preview),
+    onPreview: (preview) => {
+      if (modeRef.current !== 'quick') return
+      setText(preview)
+    },
     onFinal: (finalText) => {
+      if (modeRef.current !== 'quick') return
       setText(finalText)
       const result = parseOrderText(finalText)
       if (!result) {
         speech.setError('聞き取れました。金額を含めて修正してください')
-        setMode('quick')
         return
       }
       setParsed(result)
-      setMode(result.name ? 'confirm' : 'manual')
+      if (!result.name) {
+        speech.stop()
+        setMode('manual')
+        return
+      }
+      setMode('confirm')
     },
   })
 
-  const resetQuick = () => {
+  const resetQuick = (continueListening = false) => {
     setMode('quick')
     setParsed(null)
     setText('')
-    setFromVoice(false)
     speech.setError('')
-    speech.stop()
+    if (continueListening) {
+      setFromVoice(true)
+      if (!speech.listening) speech.start()
+    } else {
+      setFromVoice(false)
+      speech.stop()
+    }
   }
 
   const addParsed = (item: ParsedOrder) => {
     if (!item.name) {
+      speech.stop()
       setParsed(item)
       setMode('manual')
       return
     }
     onAdd(item)
-    resetQuick()
+    resetQuick(fromVoice)
   }
 
   const submitText = () => {
@@ -72,13 +88,21 @@ export function AddOrder({ onAdd }: Props) {
     speech.start()
   }
 
+  const stopMic = () => {
+    setFromVoice(false)
+    speech.stop()
+  }
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 px-3 pt-3 pb-safe backdrop-blur-md">
       {mode === 'confirm' && parsed && (
         <ConfirmCard
           parsed={parsed}
           onAdd={() => addParsed(parsed)}
-          onEdit={() => setMode('manual')}
+          onEdit={() => {
+            speech.stop()
+            setMode('manual')
+          }}
         />
       )}
 
@@ -89,20 +113,21 @@ export function AddOrder({ onAdd }: Props) {
             initial={parsed ?? { quantity: 1 }}
             onSubmit={(item) => {
               onAdd(item)
-              resetQuick()
+              resetQuick(fromVoice)
             }}
-            onCancel={resetQuick}
+            onCancel={() => resetQuick(false)}
           />
         </div>
       )}
 
-      {mode === 'quick' && (
+      {mode !== 'manual' && (
         <>
           <form
-            className="space-y-2"
+            className={`space-y-2 ${mode === 'confirm' ? 'mt-3' : ''}`}
             onSubmit={(event) => {
               event.preventDefault()
-              submitText()
+              if (mode === 'confirm' && parsed) addParsed(parsed)
+              else submitText()
             }}
           >
             <div className="flex items-center gap-2">
@@ -126,19 +151,21 @@ export function AddOrder({ onAdd }: Props) {
               {speech.available && (
                 <MicButton
                   listening={speech.listening}
-                  onToggle={speech.listening ? speech.stop : startMic}
+                  onToggle={speech.listening ? stopMic : startMic}
                 />
               )}
             </div>
             {speech.listening ? (
-              <p className="text-sm text-gold">聞いています。話してください。</p>
+              <p className="text-sm text-gold">聞いています。追加したあとも続けて話せます。</p>
             ) : null}
-            <button
-              type="submit"
-              className="h-14 w-full rounded-2xl bg-gold text-lg font-bold text-bg"
-            >
-              追加
-            </button>
+            {mode === 'quick' && (
+              <button
+                type="submit"
+                className="h-14 w-full rounded-2xl bg-gold text-lg font-bold text-bg"
+              >
+                追加
+              </button>
+            )}
           </form>
           <div className="mt-2 flex items-center justify-between gap-3">
             <p className="min-h-5 text-sm text-danger">{speech.error}</p>
@@ -146,6 +173,7 @@ export function AddOrder({ onAdd }: Props) {
               type="button"
               className="text-sm text-muted underline"
               onClick={() => {
+                setFromVoice(false)
                 speech.stop()
                 setParsed(null)
                 setMode('manual')

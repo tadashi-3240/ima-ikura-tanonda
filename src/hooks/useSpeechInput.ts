@@ -24,6 +24,7 @@ export function useSpeechInput(handlers: Handlers) {
   }, [])
 
   const start = useCallback(() => {
+    stopRef.current?.()
     setError('')
     setListening(true)
     stopRef.current = startListening({
