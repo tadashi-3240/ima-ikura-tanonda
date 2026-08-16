@@ -119,4 +119,70 @@ describe('日本語注文解析', () => {
       quantity: 1,
     })
   })
+
+  it('一人前・一皿など飲食店の単位を数量にする', () => {
+    expect(parseOrderText('カルビ880円を二人前')).toEqual({
+      name: 'カルビ',
+      unitPrice: 880,
+      quantity: 2,
+    })
+    expect(parseOrderText('カルビ880円一人前')).toEqual({
+      name: 'カルビ',
+      unitPrice: 880,
+      quantity: 1,
+    })
+    expect(parseOrderText('カルビ二人前880円')).toEqual({
+      name: 'カルビ',
+      unitPrice: 880,
+      quantity: 2,
+    })
+    expect(parseOrderText('タン塩980円を一皿')).toEqual({
+      name: 'タン塩',
+      unitPrice: 980,
+      quantity: 1,
+    })
+    expect(parseOrderText('サラダ480円をひと皿')).toEqual({
+      name: 'サラダ',
+      unitPrice: 480,
+      quantity: 1,
+    })
+    expect(parseOrderText('冷奴400円を一丁')).toEqual({
+      name: '冷奴',
+      unitPrice: 400,
+      quantity: 1,
+    })
+    expect(parseOrderText('焼き鳥180円を2串')).toEqual({
+      name: '焼き鳥',
+      unitPrice: 180,
+      quantity: 2,
+    })
+    expect(parseOrderText('ビール650円をふたつ')).toEqual({
+      name: 'ビール',
+      unitPrice: 650,
+      quantity: 2,
+    })
+  })
+
+  it('1人前を3つはメニュー分量ではなく個数3にする', () => {
+    expect(parseOrderText('カルビ880円 1人前を3つ')).toEqual({
+      name: 'カルビ 1人前',
+      unitPrice: 880,
+      quantity: 3,
+    })
+    expect(parseOrderText('カルビ1人前を3つ 880円')).toEqual({
+      name: 'カルビ1人前',
+      unitPrice: 880,
+      quantity: 3,
+    })
+    expect(parseOrderText('カルビ880円を1人前3つ')).toEqual({
+      name: 'カルビ 1人前',
+      unitPrice: 880,
+      quantity: 3,
+    })
+    expect(parseOrderText('カルビ2人前を3つ 2000円')).toEqual({
+      name: 'カルビ2人前',
+      unitPrice: 2000,
+      quantity: 3,
+    })
+  })
 })

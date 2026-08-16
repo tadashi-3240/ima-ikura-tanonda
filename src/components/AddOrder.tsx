@@ -59,7 +59,20 @@ export function AddOrder({ onAdd }: Props) {
     addParsed(result)
   }
 
+  const focusInput = () => {
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    const len = el.value.length
+    try {
+      el.setSelectionRange(len, len)
+    } catch {
+      /* ignore unsupported selection */
+    }
+  }
+
   const startMic = () => {
+    focusInput()
     setError('')
     setFromVoice(true)
     setListening(true)
@@ -147,6 +160,11 @@ export function AddOrder({ onAdd }: Props) {
                       ? 'border-gold bg-gold text-bg'
                       : 'border-line bg-card text-gold'
                   }`}
+                  onPointerDown={() => focusInput()}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    focusInput()
+                  }}
                   onClick={listening ? stopMic : startMic}
                 >
                   {listening ? '■' : '🎤'}

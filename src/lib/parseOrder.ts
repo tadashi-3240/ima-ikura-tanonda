@@ -14,13 +14,42 @@ const KANJI_DIGIT: Record<string, number> = {
   九: 9,
 }
 
-const TRAILING_QTY =
-  /(?:(?:×|x|X|✕|＊|\*)\s*([0-9]+|[一二三四五六七八九十]+)|を\s*([0-9]+|[一二三四五六七八九十]+)\s*(?:つ|個|皿|本|杯)?|([0-9]+|[一二三四五六七八九十]+)\s*(?:つ|個|皿|本|杯))\s*$/u
+const NATIVE_QTY: Record<string, number> = {
+  ひとり: 1,
+  ひと: 1,
+  ふたり: 2,
+  ふた: 2,
+  みっ: 3,
+  よっ: 4,
+  いつ: 5,
+  むっ: 6,
+  なな: 7,
+  やっ: 8,
+  ここの: 9,
+  とお: 10,
+}
 
-const LEADING_QTY =
-  /^(?:(?:×|x|X|✕|＊|\*)\s*([0-9]+|[一二三四五六七八九十]+)|([0-9]+|[一二三四五六七八九十]+)\s*(?:つ|個|皿|本|杯)(?:を)?)\s*/u
+/** 数字トークン。長い読みを先に置く */
+const QTY_NUM =
+  '[0-9]+|[一二三四五六七八九十]+|ひとり|ふたり|ここの|ひと|ふた|みっ|よっ|いつ|むっ|なな|やっ|とお'
+
+/** 何個頼むか。1人前を3つ、の「3つ」側 */
+const COUNT_UNIT =
+  'パック|セット|切れ|枚|串|丁|貫|点|品|合|膳|碗|缶|瓶|食|個|皿|本|杯|つ|さら|ほん|はい|まい|こ'
+
+/** メニューの分量。1人前を3つ、の「1人前」側 */
+const SERVING_UNIT = '人前|人盛り|にんまえ|盛り|まえ|前'
+
+const UNIT = `${SERVING_UNIT}|${COUNT_UNIT}`
+
+const QTY_PHRASE = `(?:(?:×|x|X|✕|＊|\\*)\\s*(${QTY_NUM})|を\\s*(${QTY_NUM})\\s*(?:${UNIT})?|(${QTY_NUM})\\s*(?:${UNIT}))`
+
+const COUNT_UNIT_END = new RegExp(`(?:${COUNT_UNIT})$`, 'u')
+const SERVING_UNIT_END = new RegExp(`(?:${SERVING_UNIT})$`, 'u')
 
 export function parseJapaneseNumber(raw: string): number | null {
+  if (raw in NATIVE_QTY) return NATIVE_QTY[raw]
+
   if (/^[0-9]+$/.test(raw)) {
     const n = Number.parseInt(raw, 10)
     return Number.isFinite(n) ? n : null
@@ -48,33 +77,45 @@ function quantityFromMatch(match: RegExpMatchArray): number | null {
   return n
 }
 
+function classifyQty(raw: string): 'count' | 'serving' | 'bare' {
+  const t = raw.trim()
+  if (/^[×xX✕＊*]/.test(t)) return 'count'
+  const withoutWo = t.replace(/^を\s*/u, '')
+  if (COUNT_UNIT_END.test(withoutWo)) return 'count'
+  if (SERVING_UNIT_END.test(withoutWo)) return 'serving'
+  return 'bare'
+}
+
 function extractQuantity(segment: string): { quantity: number | null; rest: string } {
   const s = segment.trim()
   if (!s) return { quantity: null, rest: '' }
 
-  const trailing = s.match(TRAILING_QTY)
-  if (trailing) {
-    const quantity = quantityFromMatch(trailing)
-    if (quantity !== null) {
-      return { quantity, rest: s.slice(0, trailing.index).trim() }
-    }
+  const matches = [...s.matchAll(new RegExp(QTY_PHRASE, 'gu'))]
+  const found = []
+  for (const match of matches) {
+    const quantity = quantityFromMatch(match)
+    if (quantity === null) continue
+    found.push({ match, quantity, kind: classifyQty(match[0]) })
   }
+  if (found.length === 0) return { quantity: null, rest: s }
 
-  const leading = s.match(LEADING_QTY)
-  if (leading) {
-    const quantity = quantityFromMatch(leading)
-    if (quantity !== null) {
-      return { quantity, rest: s.slice(leading[0].length).trim() }
-    }
-  }
+  const chosen =
+    found.filter((item) => item.kind === 'count').at(-1) ??
+    found.filter((item) => item.kind === 'bare').at(-1) ??
+    found.filter((item) => item.kind === 'serving').at(-1)
+  if (!chosen) return { quantity: null, rest: s }
 
-  return { quantity: null, rest: s }
+  const start = chosen.match.index ?? 0
+  const end = start + chosen.match[0].length
+  const rest = `${s.slice(0, start)} ${s.slice(end)}`.replace(/\s+/g, ' ').trim()
+  return { quantity: chosen.quantity, rest }
 }
 
 function cleanName(name: string): string {
   return name
-    .replace(/[\s　]*[を、,]+$/u, '')
-    .replace(/^[\s　]*[を、,]+/u, '')
+    .replace(/\s*を\s*/gu, ' ')
+    .replace(/[\s　]*[、,]+$/u, '')
+    .replace(/^[\s　]*[、,]+/u, '')
     .replace(/[\s　]+/g, ' ')
     .trim()
 }
@@ -94,12 +135,9 @@ export function parseOrderText(input: string): ParsedOrder | null {
   const before = text.slice(0, priceIndex)
   const after = text.slice(priceIndex + priceMatch[0].length)
 
-  const fromAfter = extractQuantity(after)
-  const fromBefore =
-    fromAfter.quantity === null ? extractQuantity(before) : { quantity: null, rest: before }
-
-  const quantity = fromAfter.quantity ?? fromBefore.quantity ?? 1
-  const name = cleanName(fromAfter.quantity !== null ? before : fromBefore.rest)
+  const extracted = extractQuantity(`${before} ${after}`.replace(/\s+/g, ' '))
+  const quantity = extracted.quantity ?? 1
+  const name = cleanName(extracted.rest)
 
   return { name, unitPrice, quantity }
 }
