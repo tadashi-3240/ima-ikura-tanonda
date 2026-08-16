@@ -23,44 +23,79 @@ export function startListening(handlers: ListenHandlers): () => void {
   const recognition = new Ctor()
   recognition.lang = 'ja-JP'
   recognition.interimResults = true
-  recognition.continuous = false
+  recognition.continuous = true
+  recognition.maxAlternatives = 1
+
+  let stopped = false
+  let silenceTimer: ReturnType<typeof setTimeout> | null = null
+  let lastFinal = ''
+
+  const clearSilence = () => {
+    if (silenceTimer) {
+      clearTimeout(silenceTimer)
+      silenceTimer = null
+    }
+  }
+
+  const finish = () => {
+    if (stopped) return
+    stopped = true
+    clearSilence()
+    try {
+      recognition.stop()
+    } catch {
+      /* already stopped */
+    }
+  }
 
   recognition.onresult = (event: SpeechRecognitionEvent) => {
     let preview = ''
     let finalText = ''
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+    for (let i = 0; i < event.results.length; i += 1) {
       const result = event.results[i]
       const transcript = result[0]?.transcript ?? ''
       if (result.isFinal) finalText += transcript
       else preview += transcript
     }
-    if (preview) handlers.onPreview(preview)
-    if (finalText) handlers.onFinal(finalText.trim())
+    const shown = `${finalText}${preview}`.trim()
+    if (shown) handlers.onPreview(shown)
+    if (finalText.trim()) {
+      lastFinal = finalText.trim()
+      clearSilence()
+      silenceTimer = setTimeout(() => finish(), 1200)
+    }
   }
 
   recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
     if (event.error === 'aborted' || event.error === 'no-speech') {
-      handlers.onEnd()
       return
     }
     if (event.error === 'not-allowed') {
-      handlers.onError('マイクの使用が許可されていません')
+      handlers.onError('マイクの使用が許可されていません。ブラウザの設定を確認してください')
+    } else if (event.error === 'network') {
+      handlers.onError('音声認識の通信に失敗しました')
     } else {
       handlers.onError('音声を認識できませんでした')
     }
-    handlers.onEnd()
+    finish()
   }
 
   recognition.onend = () => {
+    clearSilence()
+    const text = lastFinal.trim()
+    if (text) handlers.onFinal(text)
     handlers.onEnd()
   }
 
-  recognition.start()
+  try {
+    recognition.start()
+  } catch {
+    handlers.onError('音声入力を開始できませんでした')
+    handlers.onEnd()
+    return () => {}
+  }
 
   return () => {
-    recognition.onresult = null
-    recognition.onerror = null
-    recognition.onend = null
-    recognition.abort()
+    finish()
   }
 }

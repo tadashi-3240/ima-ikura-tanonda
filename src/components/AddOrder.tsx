@@ -153,6 +153,9 @@ export function AddOrder({ onAdd }: Props) {
                 </button>
               )}
             </div>
+            {listening ? (
+              <p className="text-sm text-gold">聞いています。話してから少し待つと文字になります。</p>
+            ) : null}
             <button
               type="submit"
               className="h-14 w-full rounded-2xl bg-gold text-lg font-bold text-bg"
