@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "今いくら頼んだ？",
+    "slug": "ima-ikura-tanonda",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#140e0c",
+    "scheme": "imaikura",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#140e0c"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.imaikura.tanonda"
+    },
+    "android": {
+      "package": "app.imaikura.tanonda",
+      "adaptiveIcon": {
+        "backgroundColor": "#140e0c",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      }
+    },
+    "description": "焼肉・居酒屋・中華などで、今いくら頼んだかをすぐ確認できる、お客さん側専用の注文金額メモ。"
+  }
+}
