@@ -1,12 +1,23 @@
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const base = process.env.BASE_PATH || '/'
+const rootDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   base,
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(rootDir, 'index.html'),
+        calendar: resolve(rootDir, 'calendar.html'),
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
