@@ -28,6 +28,7 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>(state.orders.length > 0 ? 'live' : 'bulk')
   const [draftItems, setDraftItems] = useState<ParsedOrder[]>([])
   const [spoken, setSpoken] = useState('')
+  const [captureResetKey, setCaptureResetKey] = useState(0)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const total = grandTotal(state.orders)
   const compactTotal = state.orders.length > 2
@@ -39,84 +40,97 @@ export default function App() {
     root.scrollTo({ top: root.scrollHeight })
   }, [lastOrder?.id, lastOrder?.quantity, state.orders.length])
 
-  if (phase === 'bulk') {
-    return (
-      <OpeningCapture
-        initialText={spoken}
-        onParsed={(items, raw) => {
-          setDraftItems(items)
-          setSpoken(raw)
-          setPhase('review')
-        }}
-        onSkip={() => setPhase('live')}
-      />
-    )
+  const resetAll = () => {
+    reset()
+    setDraftItems([])
+    setSpoken('')
+    setCaptureResetKey((value) => value + 1)
+    setPhase('bulk')
+    setConfirmReset(false)
   }
 
-  if (phase === 'review') {
-    return (
-      <OpeningReview
-        initial={draftItems}
-        spoken={spoken}
-        onConfirm={(items: NewOrder[]) => {
-          addMany(items)
-          setDraftItems([])
-          setSpoken('')
-          setPhase('live')
-        }}
-        onBack={() => setPhase('bulk')}
-      />
-    )
-  }
+  const resetButton = (
+    <button
+      type="button"
+      className="absolute right-4 top-5 z-10 h-11 rounded-xl border border-line px-3 text-sm"
+      onClick={() => setConfirmReset(true)}
+    >
+      リセット
+    </button>
+  )
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-bg">
-      <div className="shrink-0 border-b border-line/50 bg-bg pt-safe">
-        <header className={`px-4 text-center ${compactTotal ? 'pt-2' : 'pt-4'}`}>
-          <h1
-            className={`font-bold tracking-wide ${
-              compactTotal ? 'text-base sm:text-lg' : 'text-2xl sm:text-3xl'
-            }`}
-          >
-            今いくら頼んだ？
-          </h1>
-          {compactTotal ? null : (
-            <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
-          )}
-        </header>
-        <TotalDisplay total={total} compact={compactTotal} />
-      </div>
-
-      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-3">
-        <BudgetPanel budget={state.budget} total={total} onChange={changeBudget} />
-
-        <div className="mb-4 flex items-center justify-between px-4">
-          <button
-            type="button"
-            className="h-11 rounded-xl px-3 text-muted disabled:opacity-30"
-            disabled={!canUndo}
-            onClick={undo}
-          >
-            元に戻す
-          </button>
-          <button
-            type="button"
-            className="h-11 rounded-xl border border-line px-4 text-sm"
-            onClick={() => setConfirmReset(true)}
-          >
-            新しい会計
-          </button>
-        </div>
-
-        <OrderList
-          orders={state.orders}
-          onQuantity={changeQuantity}
-          onUpdate={update}
-          onRemove={remove}
+    <>
+      {phase === 'bulk' ? (
+        <OpeningCapture
+          key={captureResetKey}
+          initialText={spoken}
+          resetButton={resetButton}
+          onParsed={(items, raw) => {
+            setDraftItems(items)
+            setSpoken(raw)
+            setPhase('review')
+          }}
+          onSkip={() => setPhase('live')}
         />
-      </div>
+      ) : null}
 
-      <AddOrder onAdd={add} />
+      {phase === 'review' ? (
+        <OpeningReview
+          initial={draftItems}
+          spoken={spoken}
+          resetButton={resetButton}
+          onConfirm={(items: NewOrder[]) => {
+            addMany(items)
+            setDraftItems([])
+            setSpoken('')
+            setPhase('live')
+          }}
+          onBack={() => setPhase('bulk')}
+        />
+      ) : null}
+
+      {phase === 'live' ? (
+        <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-bg">
+          <div className="shrink-0 border-b border-line/50 bg-bg pt-safe">
+            <header className={`relative px-4 text-center ${compactTotal ? 'pt-2' : 'pt-4'}`}>
+              <button
+                type="button"
+                className="absolute left-4 top-5 z-10 h-11 rounded-xl px-3 text-sm text-muted disabled:opacity-30"
+                disabled={!canUndo}
+                onClick={undo}
+              >
+                元に戻す
+              </button>
+              {resetButton}
+              <h1
+                className={`px-16 font-bold tracking-wide ${
+                  compactTotal ? 'text-base sm:text-lg' : 'text-2xl sm:text-3xl'
+                }`}
+              >
+                今いくら頼んだ？
+              </h1>
+              {compactTotal ? null : (
+                <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
+              )}
+            </header>
+            <TotalDisplay total={total} compact={compactTotal} />
+          </div>
+
+          <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-3">
+            <BudgetPanel budget={state.budget} total={total} onChange={changeBudget} />
+
+            <OrderList
+              orders={state.orders}
+              onQuantity={changeQuantity}
+              onUpdate={update}
+              onRemove={remove}
+            />
+          </div>
+
+          <AddOrder onAdd={add} />
+        </div>
+      ) : null}
 
       {confirmReset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
@@ -126,13 +140,7 @@ export default function App() {
               <button
                 type="button"
                 className="h-14 rounded-2xl bg-danger text-lg font-bold text-bg"
-                onClick={() => {
-                  reset()
-                  setDraftItems([])
-                  setSpoken('')
-                  setPhase('bulk')
-                  setConfirmReset(false)
-                }}
+                onClick={resetAll}
               >
                 消去する
               </button>
@@ -147,6 +155,6 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

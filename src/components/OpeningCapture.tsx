@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useRef, useState } from 'react'
 import { useSpeechInput } from '../hooks/useSpeechInput'
 import { parseOrderList } from '../lib/parseOrder'
@@ -6,11 +7,12 @@ import { MicButton } from './MicButton'
 
 type Props = {
   initialText?: string
+  resetButton?: ReactNode
   onParsed: (items: ParsedOrder[], spoken: string) => void
   onSkip: () => void
 }
 
-export function OpeningCapture({ initialText = '', onParsed, onSkip }: Props) {
+export function OpeningCapture({ initialText = '', resetButton, onParsed, onSkip }: Props) {
   const [text, setText] = useState(initialText)
   const [error, setError] = useState('')
   const spokenRef = useRef(initialText)
@@ -48,8 +50,9 @@ export function OpeningCapture({ initialText = '', onParsed, onSkip }: Props) {
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-bg pt-safe pb-safe">
-      <header className="shrink-0 px-4 pt-6 text-center">
-        <h1 className="text-2xl font-bold tracking-wide sm:text-3xl">今いくら頼んだ？</h1>
+      <header className="relative shrink-0 px-4 pt-6 text-center">
+        {resetButton}
+        <h1 className="px-16 text-2xl font-bold tracking-wide sm:text-3xl">今いくら頼んだ？</h1>
         <p className="mt-2 text-sm text-muted">
           最初はまとめて言ってください。あとから直せます。
         </p>

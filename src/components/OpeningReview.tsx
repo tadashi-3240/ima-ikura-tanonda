@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { formatYen, grandTotal, lineSubtotal } from '../lib/money'
 import type { NewOrder, ParsedOrder } from '../types/order'
 import { ManualForm } from './ManualForm'
@@ -9,6 +9,7 @@ type Draft = ParsedOrder & { key: string }
 type Props = {
   initial: ParsedOrder[]
   spoken?: string
+  resetButton?: ReactNode
   onConfirm: (items: NewOrder[]) => void
   onBack: () => void
 }
@@ -17,7 +18,7 @@ function toDraft(items: ParsedOrder[]): Draft[] {
   return items.map((item, index) => ({ ...item, key: `${item.name}-${item.unitPrice}-${index}` }))
 }
 
-export function OpeningReview({ initial, spoken, onConfirm, onBack }: Props) {
+export function OpeningReview({ initial, spoken, resetButton, onConfirm, onBack }: Props) {
   const [drafts, setDrafts] = useState<Draft[]>(() => toDraft(initial))
   const [adding, setAdding] = useState(false)
   const [editingKey, setEditingKey] = useState<string | null>(null)
@@ -40,8 +41,9 @@ export function OpeningReview({ initial, spoken, onConfirm, onBack }: Props) {
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-bg pt-safe pb-safe">
-      <header className="shrink-0 border-b border-line/50 px-4 pt-5 pb-3 text-center">
-        <h1 className="text-2xl font-bold tracking-wide">今いくら頼んだ？</h1>
+      <header className="relative shrink-0 border-b border-line/50 px-4 pt-5 pb-3 text-center">
+        {resetButton}
+        <h1 className="px-16 text-2xl font-bold tracking-wide">今いくら頼んだ？</h1>
         <p className="mt-1 text-sm text-muted">違っていたら、ここで直してください。</p>
         <p className="mt-3 font-bold tracking-tight text-gold tabular-nums text-[clamp(2.4rem,11vw,4.2rem)] leading-none">
           {formatYen(total)}
