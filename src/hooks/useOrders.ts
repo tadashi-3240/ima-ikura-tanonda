@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   addOrder,
+  addOrders,
   removeOrder,
   resetOrders,
   setBudget,
@@ -30,6 +31,14 @@ export function useOrders() {
   const add = useCallback(
     (item: NewOrder) => {
       commit((prev) => addOrder(prev, item))
+    },
+    [commit],
+  )
+
+  const addMany = useCallback(
+    (items: NewOrder[]) => {
+      if (items.length === 0) return
+      commit((prev) => addOrders(prev, items))
     },
     [commit],
   )
@@ -77,6 +86,7 @@ export function useOrders() {
   return {
     state,
     add,
+    addMany,
     changeQuantity,
     remove,
     update,

@@ -35,6 +35,10 @@ export function addOrder(state: AppState, incoming: NewOrder): AppState {
   return { ...state, orders: [...state.orders, next] }
 }
 
+export function addOrders(state: AppState, items: NewOrder[]): AppState {
+  return items.reduce((next, item) => addOrder(next, item), state)
+}
+
 export function setQuantity(state: AppState, id: string, quantity: number): AppState {
   const nextQuantity = Math.max(1, quantity)
   return {

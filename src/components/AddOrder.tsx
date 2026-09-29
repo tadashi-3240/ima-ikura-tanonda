@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useSpeechInput } from '../hooks/useSpeechInput'
-import { parseOrderText } from '../lib/parseOrder'
+import { parseOrderList } from '../lib/parseOrder'
 import type { NewOrder, ParsedOrder } from '../types/order'
 import { ManualForm } from './ManualForm'
 import { MicButton } from './MicButton'
@@ -31,19 +31,22 @@ export function AddOrder({ onAdd }: Props) {
       if (modeRef.current !== 'quick') return
       if (skipDuplicateFinalRef.current) return
       setText(finalText)
-      const result = parseOrderText(finalText)
-      if (!result) {
+      const items = parseOrderList(finalText)
+      if (items.length === 0) {
         speech.setError('聞き取れました。金額を含めて修正してください')
         return
       }
-      if (!result.name) {
+      const unnamed = items.find((item) => !item.name)
+      if (items.length === 1 && unnamed) {
         speech.stop()
-        setParsed(result)
+        setParsed(unnamed)
         setMode('manual')
         return
       }
       skipDuplicateFinalRef.current = true
-      onAdd(result)
+      for (const item of items) {
+        if (item.name) onAdd(item)
+      }
       setText('')
       speech.setError('')
     },
@@ -75,13 +78,21 @@ export function AddOrder({ onAdd }: Props) {
   }
 
   const submitText = () => {
-    const result = parseOrderText(text)
-    if (!result) {
-      speech.setError('商品名と金額を入力してください。例: ビール650円を2つ')
+    const items = parseOrderList(text)
+    if (items.length === 0) {
+      speech.setError('商品名と金額を入力してください。例: ビール650円を2つ、カルビ880円を3つ')
       return
     }
     speech.setError('')
-    addParsed(result)
+    const unnamed = items.find((item) => !item.name)
+    if (items.length === 1 && unnamed) {
+      addParsed(unnamed)
+      return
+    }
+    for (const item of items) {
+      if (item.name) onAdd(item)
+    }
+    resetQuick(fromVoice)
   }
 
   const startMic = () => {
@@ -130,7 +141,7 @@ export function AddOrder({ onAdd }: Props) {
                   setText(event.target.value)
                   if (speech.error) speech.setError('')
                 }}
-                placeholder="ビール650円を2つ"
+                placeholder="ビール2つ650円、カルビ3つ880円"
                 aria-label="注文"
                 enterKeyHint="done"
                 autoCapitalize="none"

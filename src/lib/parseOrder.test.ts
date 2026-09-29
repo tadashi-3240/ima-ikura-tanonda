@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseOrderText } from './parseOrder'
+import { parseOrderList, parseOrderText } from './parseOrder'
 
 describe('日本語注文解析', () => {
   it('数量省略時は1になる', () => {
@@ -184,5 +184,28 @@ describe('日本語注文解析', () => {
       unitPrice: 2000,
       quantity: 3,
     })
+  })
+
+  it('複数品を一度に解析する', () => {
+    expect(parseOrderList('ビール650円を2つ、カルビ880円を3つ')).toEqual([
+      { name: 'ビール', unitPrice: 650, quantity: 2 },
+      { name: 'カルビ', unitPrice: 880, quantity: 3 },
+    ])
+    expect(parseOrderList('ビール2つ650円カルビ3つ880円餃子1100円を2つ')).toEqual([
+      { name: 'ビール', unitPrice: 650, quantity: 2 },
+      { name: 'カルビ', unitPrice: 880, quantity: 3 },
+      { name: '餃子', unitPrice: 1100, quantity: 2 },
+    ])
+    expect(parseOrderList('ビール2つ、650円、カルビ3つで880円')).toEqual([
+      { name: 'ビール', unitPrice: 650, quantity: 2 },
+      { name: 'カルビ', unitPrice: 880, quantity: 3 },
+    ])
+    expect(parseOrderList('餃子1100円×2とご飯600円を2つ')).toEqual([
+      { name: '餃子', unitPrice: 1100, quantity: 2 },
+      { name: 'ご飯', unitPrice: 600, quantity: 2 },
+    ])
+    expect(parseOrderList('ビール650円を2つ')).toEqual([
+      { name: 'ビール', unitPrice: 650, quantity: 2 },
+    ])
   })
 })

@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { AddOrder } from './components/AddOrder'
 import { BudgetPanel } from './components/BudgetPanel'
+import { OpeningCapture } from './components/OpeningCapture'
+import { OpeningReview } from './components/OpeningReview'
 import { OrderList } from './components/OrderList'
 import { TotalDisplay } from './components/TotalDisplay'
 import { useOrders } from './hooks/useOrders'
 import { grandTotal } from './lib/money'
+import type { NewOrder, ParsedOrder } from './types/order'
+
+type Phase = 'bulk' | 'review' | 'live'
 
 export default function App() {
   const {
     state,
     add,
+    addMany,
     changeQuantity,
     remove,
     update,
@@ -19,6 +25,9 @@ export default function App() {
     canUndo,
   } = useOrders()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [phase, setPhase] = useState<Phase>(state.orders.length > 0 ? 'live' : 'bulk')
+  const [draftItems, setDraftItems] = useState<ParsedOrder[]>([])
+  const [spoken, setSpoken] = useState('')
   const scrollerRef = useRef<HTMLDivElement>(null)
   const total = grandTotal(state.orders)
   const compactTotal = state.orders.length > 2
@@ -29,6 +38,36 @@ export default function App() {
     if (!root || !lastOrder) return
     root.scrollTo({ top: root.scrollHeight })
   }, [lastOrder?.id, lastOrder?.quantity, state.orders.length])
+
+  if (phase === 'bulk') {
+    return (
+      <OpeningCapture
+        initialText={spoken}
+        onParsed={(items, raw) => {
+          setDraftItems(items)
+          setSpoken(raw)
+          setPhase('review')
+        }}
+        onSkip={() => setPhase('live')}
+      />
+    )
+  }
+
+  if (phase === 'review') {
+    return (
+      <OpeningReview
+        initial={draftItems}
+        spoken={spoken}
+        onConfirm={(items: NewOrder[]) => {
+          addMany(items)
+          setDraftItems([])
+          setSpoken('')
+          setPhase('live')
+        }}
+        onBack={() => setPhase('bulk')}
+      />
+    )
+  }
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-bg">
@@ -89,6 +128,9 @@ export default function App() {
                 className="h-14 rounded-2xl bg-danger text-lg font-bold text-bg"
                 onClick={() => {
                   reset()
+                  setDraftItems([])
+                  setSpoken('')
+                  setPhase('bulk')
                   setConfirmReset(false)
                 }}
               >

@@ -114,6 +114,7 @@ function extractQuantity(segment: string): { quantity: number | null; rest: stri
 function cleanName(name: string): string {
   return name
     .replace(/\s*を\s*/gu, ' ')
+    .replace(/\s*で\s*$/u, '')
     .replace(/[\s　]*[、,]+$/u, '')
     .replace(/^[\s　]*[、,]+/u, '')
     .replace(/[\s　]+/g, ' ')
@@ -140,4 +141,77 @@ export function parseOrderText(input: string): ParsedOrder | null {
   const name = cleanName(extracted.rest)
 
   return { name, unitPrice, quantity }
+}
+
+const AFTER_PRICE_QTY = new RegExp(
+  `^\\s*(?:を\\s*)?(?:(?:×|x|X|✕|＊|\\*)\\s*)?(?:${QTY_NUM})\\s*(?:${UNIT})?`,
+  'u',
+)
+
+function glueNameAndPrice(parts: string[]): string[] {
+  const out: string[] = []
+  let pending = ''
+  for (const part of parts) {
+    const hasPrice = /[0-9][0-9,]*\s*円/u.test(part)
+    if (!hasPrice) {
+      pending = pending ? `${pending} ${part}` : part
+      continue
+    }
+    out.push(pending ? `${pending} ${part}` : part)
+    pending = ''
+  }
+  if (pending) out.push(pending)
+  return out
+}
+
+function splitByPrices(part: string): string[] {
+  const prices = [...part.matchAll(/([0-9][0-9,]*)\s*円/g)]
+  if (prices.length <= 1) return part.trim() ? [part.trim()] : []
+
+  const chunks: string[] = []
+  let cursor = 0
+  for (let i = 0; i < prices.length; i += 1) {
+    const match = prices[i]
+    const priceEnd = (match.index ?? 0) + match[0].length
+    const nextPriceStart = i + 1 < prices.length ? (prices[i + 1].index ?? part.length) : part.length
+    const after = part.slice(priceEnd, nextPriceStart)
+    const qtyMatch = after.match(AFTER_PRICE_QTY)
+    const qtyLen = qtyMatch ? qtyMatch[0].length : 0
+    const chunk = part.slice(cursor, priceEnd + qtyLen).trim()
+    if (chunk) chunks.push(chunk)
+    cursor = priceEnd + qtyLen
+  }
+  const tail = part.slice(cursor).trim()
+  if (tail) {
+    if (chunks.length > 0) chunks[chunks.length - 1] = `${chunks[chunks.length - 1]} ${tail}`
+    else chunks.push(tail)
+  }
+  return chunks
+}
+
+/** 「ビール2つ650円、カルビ3つ880円」のように複数品を一度に読む */
+export function parseOrderList(input: string): ParsedOrder[] {
+  const text = input
+    .normalize('NFKC')
+    .replace(/(円(?:[^、,。円]{0,12})?)\s*と(?=\S)/gu, '$1、')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!text) return []
+
+  const rough = text
+    .split(/(?:[、,。]+|\s+(?:あと|それから|それと)\s+)/u)
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  const chunks: string[] = []
+  for (const part of glueNameAndPrice(rough)) {
+    chunks.push(...splitByPrices(part))
+  }
+
+  const items: ParsedOrder[] = []
+  for (const chunk of chunks) {
+    const parsed = parseOrderText(chunk)
+    if (parsed) items.push(parsed)
+  }
+  return items
 }
