@@ -36,11 +36,12 @@ struct SetupGuideView: View {
                 Text("音声入力の確認")
                     .font(.headline)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("1. キーボードの大きな「🎤 音声入力」をタップ")
-                    Text("2. ホストが開き「話してください」→ 話す")
-                    Text("3. 「完了」をタップ")
-                    Text("4. メモ等に戻り、補正後の文字が入ることを確認")
-                    Text("例: 「かねこ」→ 金古（補正 ON 時）")
+                    Text("いちばん確実: アプリの「音声」タブの赤いボタン")
+                    Text("1. 赤い「音声入力」をタップ（反応して起動中と出ます）")
+                    Text("2. 「話してください」→ 話す")
+                    Text("3. 「完了」→「メモに戻る」")
+                    Text("4. メモで協豊キーボード → 自動挿入 or「結果を貼る」")
+                    Text("キーボードの🎤が無反応なら、必ずアプリの赤いボタンを使ってください")
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

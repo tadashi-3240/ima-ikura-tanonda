@@ -1,6 +1,6 @@
 import SwiftUI
 
-private struct VoiceSessionRoute: Identifiable {
+private struct VoiceSessionRoute: Identifiable, Equatable {
     let id: UUID
 }
 
@@ -17,18 +17,11 @@ struct KyohoranguageHostApp: App {
                 lastResultHint: lastResultHint
             )
             .fullScreenCover(item: $voiceRoute) { route in
-                VoiceInputView(sessionId: route.id) {
-                    if let last = VoiceBridge.loadLastResult() {
-                        let shown = last.correctedText.isEmpty ? last.rawText : last.correctedText
-                        lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが入れます。入らなければ「結果を貼る」。"
-                    } else {
-                        let payload = VoiceBridge.load()
-                        if payload.status == .ready {
-                            let shown = payload.correctedText.isEmpty ? payload.rawText : payload.correctedText
-                            lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが入れます。入らなければ「結果を貼る」。"
-                        }
+                NavigationStack {
+                    VoiceInputView(sessionId: route.id) {
+                        updateHintAfterVoice()
+                        voiceRoute = nil
                     }
-                    voiceRoute = nil
                 }
             }
             .onOpenURL { url in
@@ -44,6 +37,18 @@ struct KyohoranguageHostApp: App {
 
     private func startVoiceFromHost() {
         lastResultHint = nil
+        // Dismiss any stale cover first, then present a fresh session.
+        if voiceRoute != nil {
+            voiceRoute = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                presentNewVoiceSession()
+            }
+        } else {
+            presentNewVoiceSession()
+        }
+    }
+
+    private func presentNewVoiceSession() {
         let payload = VoiceBridge.beginRequest()
         voiceRoute = VoiceSessionRoute(id: payload.sessionId)
     }
@@ -67,5 +72,18 @@ struct KyohoranguageHostApp: App {
         let payload = VoiceBridge.load()
         guard payload.status == .requesting, !VoiceBridge.isTimedOut(payload) else { return }
         voiceRoute = VoiceSessionRoute(id: payload.sessionId)
+    }
+
+    private func updateHintAfterVoice() {
+        if let last = VoiceBridge.loadLastResult() {
+            let shown = last.correctedText.isEmpty ? last.rawText : last.correctedText
+            lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが入れます。入らなければ「結果を貼る」。"
+            return
+        }
+        let payload = VoiceBridge.load()
+        if payload.status == .ready {
+            let shown = payload.correctedText.isEmpty ? payload.rawText : payload.correctedText
+            lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが入れます。入らなければ「結果を貼る」。"
+        }
     }
 }

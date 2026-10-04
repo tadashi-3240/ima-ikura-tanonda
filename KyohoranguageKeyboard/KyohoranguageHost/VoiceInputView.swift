@@ -146,6 +146,8 @@ struct VoiceInputView: View {
         guard !didAutoStart else { return }
         didAutoStart = true
         _ = store.seedInitialEntriesIfEmpty()
+        // Small yield so the cover animation finishes before the mic permission sheet.
+        try? await Task.sleep(nanoseconds: 200_000_000)
         await speech.prepareAndStart(sessionId: sessionId)
     }
 

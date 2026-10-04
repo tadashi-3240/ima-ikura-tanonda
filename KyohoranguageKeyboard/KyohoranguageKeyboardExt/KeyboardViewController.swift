@@ -99,11 +99,17 @@ final class KeyboardViewController: UIInputViewController {
 
         micButton.setTitle("🎤 音声入力", for: .normal)
         micButton.titleLabel?.font = .systemFont(ofSize: 24, weight: .bold)
-        micButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 64).isActive = true
+        micButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 72).isActive = true
         micButton.layer.cornerRadius = 14
         micButton.clipsToBounds = true
-        micButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.18)
+        micButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.22)
         micButton.setTitleColor(.systemRed, for: .normal)
+        micButton.isUserInteractionEnabled = true
+        micButton.accessibilityLabel = "音声入力"
+        // Immediate press feedback (touchDown), then launch on touchUp.
+        micButton.addAction(UIAction { [weak self] _ in
+            self?.flashMicPressed()
+        }, for: .touchDown)
         micButton.addAction(UIAction { [weak self] _ in
             self?.startVoiceInput()
         }, for: .touchUpInside)
@@ -302,52 +308,79 @@ final class KeyboardViewController: UIInputViewController {
 
     // MARK: - Voice
 
+    private func flashMicPressed() {
+        micButton.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.45)
+        micButton.setTitle("🎤 押されました…", for: .normal)
+        statusOverride = "マイク反応あり → アプリを開きます…"
+        refreshChrome()
+    }
+
     private func startVoiceInput() {
         reloadDictionary()
-        statusOverride = nil
+
+        // Always show a clear reaction first (even if Full Access is off).
+        statusOverride = "マイク反応あり → アプリを開きます…"
+        micButton.setTitle("🎤 起動中…", for: .normal)
+        micButton.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.35)
+        refreshChrome()
 
         // Host-first: if Full Access is off, don't pretend to wait.
         guard hasFullAccess else {
-            failVoiceLaunch(message: hostVoiceHint + "（フルアクセスもオンにしてください）")
+            failVoiceLaunch(
+                message: "フルアクセスがオフです。設定→キーボード→協豊ランゲージ→フルアクセスON。または協豊ランゲージアプリの「音声」赤いボタンへ"
+            )
             return
         }
 
         let payload = VoiceBridge.beginRequest()
         awaitingVoiceSessionId = payload.sessionId
-        // Fail fast if host never starts listening.
-        voiceLaunchDeadline = Date().addingTimeInterval(1.5)
-        statusOverride = "アプリを開いています… 開かないときは「協豊ランゲージ」アプリの「音声」へ"
+        // Give the host a moment to leave .requesting; then guide the user.
+        voiceLaunchDeadline = Date().addingTimeInterval(2.5)
+        statusOverride = "協豊ランゲージを開いています… 開かないときはアプリアイコン→「音声」"
         refreshChrome()
         startVoicePolling(interval: 0.15)
-        aggressivePollUntil = Date().addingTimeInterval(8)
+        aggressivePollUntil = Date().addingTimeInterval(12)
         openHostVoiceURL()
     }
 
     private func openHostVoiceURL() {
         let url = AppGroupConstants.voiceURL
+        var launched = false
 
-        if openURLWithUIApplication(url) {
-            return
-        }
-
-        guard let context = extensionContext else {
-            failVoiceLaunch(message: hostVoiceHint)
-            return
-        }
-
-        context.open(url) { [weak self] success in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                if !success {
-                    self.failVoiceLaunch(message: self.hostVoiceHint)
+        // 1) Documented API for extensions (needs Full Access).
+        if let context = extensionContext {
+            launched = true
+            context.open(url) { [weak self] success in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if success {
+                        self.statusOverride = "アプリで話して「完了」→ ここに戻ると文字が入ります"
+                        self.refreshChrome()
+                    } else {
+                        // Try alternate open paths before giving up.
+                        if !self.openURLViaResponderChain(url) {
+                            self.failVoiceLaunch(message: self.hostVoiceHint)
+                        }
+                    }
                 }
             }
         }
+
+        // 2) Also try responder-chain open immediately (some iOS versions need this).
+        if openURLViaResponderChain(url) {
+            launched = true
+        }
+
+        if !launched {
+            failVoiceLaunch(message: hostVoiceHint)
+        }
     }
 
+    /// Public-API open via UIApplication in the responder chain (when available).
     @discardableResult
-    private func openURLWithUIApplication(_ url: URL) -> Bool {
+    private func openURLViaResponderChain(_ url: URL) -> Bool {
         var responder: UIResponder? = self
+        let selector = sel_registerName("openURL:")
         while let current = responder {
             if let application = current as? UIApplication {
                 application.open(url, options: [:]) { [weak self] success in
@@ -356,11 +389,16 @@ final class KeyboardViewController: UIInputViewController {
                         if success {
                             self.statusOverride = "アプリで話して「完了」→ ここに戻ると文字が入ります"
                             self.refreshChrome()
-                        } else {
-                            self.failVoiceLaunch(message: self.hostVoiceHint)
                         }
                     }
                 }
+                return true
+            }
+            // Older path still used by many keyboards; selector is UIApplication.openURL.
+            if current.responds(to: selector) {
+                current.perform(selector, with: url)
+                statusOverride = "アプリで話して「完了」→ ここに戻ると文字が入ります"
+                refreshChrome()
                 return true
             }
             responder = current.next
@@ -373,6 +411,8 @@ final class KeyboardViewController: UIInputViewController {
         awaitingVoiceSessionId = nil
         voiceLaunchDeadline = nil
         statusOverride = message
+        micButton.setTitle("🎤 アプリで音声", for: .normal)
+        micButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.22)
         // Keep light polling so host-completed results still insert.
         startVoicePolling(interval: 0.2)
         refreshChrome()
@@ -623,10 +663,16 @@ final class KeyboardViewController: UIInputViewController {
 
         if let statusOverride, !statusOverride.isEmpty {
             previewLabel.text = statusOverride
-            previewLabel.textColor = statusOverride.contains("開けません") || statusOverride.contains("フルアクセス") || statusOverride.contains("エラー") || statusOverride.contains("タイムアウト")
-                ? .systemOrange
-                : .secondaryLabel
-            previewLabel.numberOfLines = 3
+            let isAlert = statusOverride.contains("開けません")
+                || statusOverride.contains("フルアクセス")
+                || statusOverride.contains("エラー")
+                || statusOverride.contains("タイムアウト")
+                || statusOverride.contains("オフ")
+                || statusOverride.contains("アプリの「音声」")
+                || statusOverride.contains("マイク反応")
+            previewLabel.textColor = isAlert ? .systemOrange : .secondaryLabel
+            previewLabel.numberOfLines = 4
+            previewLabel.font = .systemFont(ofSize: isAlert ? 17 : 16, weight: isAlert ? .semibold : .medium)
         } else if composition.isEmpty {
             previewLabel.text = correctionEnabled
                 ? "補正ON：確定／音声で辞書を適用します"
