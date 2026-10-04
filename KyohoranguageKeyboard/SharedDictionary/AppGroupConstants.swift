@@ -13,6 +13,12 @@ enum AppGroupConstants {
     /// Shared voice session payload (JSON).
     static let voicePayloadKey = "kyohoranguage.voice.payload.v1"
 
+    /// Last completed voice result (survives session clears; used for paste/insert).
+    static let lastVoiceResultKey = "kyohoranguage.voice.lastResult.v1"
+
+    /// Text last copied to the system pasteboard by host voice completion.
+    static let lastClipboardTextKey = "kyohoranguage.voice.lastClipboard.v1"
+
     /// Custom URL scheme for opening the host voice UI from the keyboard.
     static let urlScheme = "kyohoranguage"
 

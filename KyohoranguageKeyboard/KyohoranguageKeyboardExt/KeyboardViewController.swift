@@ -19,6 +19,8 @@ final class KeyboardViewController: UIInputViewController {
     private var voiceBecameActiveAt: Date?
     private var aggressivePollUntil: Date?
     private var statusOverride: String?
+    /// Prevents double auto-insert of the same completed voice session.
+    private var lastAutoInsertedSessionId: UUID?
 
     private let hostVoiceHint = "協豊ランゲージアプリの「音声」から入力してください"
 
@@ -27,6 +29,7 @@ final class KeyboardViewController: UIInputViewController {
     private let previewLabel = UILabel()
     private let correctionButton = UIButton(type: .system)
     private let micButton = UIButton(type: .system)
+    private let pasteResultButton = UIButton(type: .system)
     private let pageControl = UISegmentedControl(items: ["あ", "ア", "候補"])
     private let keysScrollView = UIScrollView()
     private let keysContainer = UIStackView()
@@ -105,6 +108,18 @@ final class KeyboardViewController: UIInputViewController {
             self?.startVoiceInput()
         }, for: .touchUpInside)
 
+        pasteResultButton.setTitle("📋 結果を貼る", for: .normal)
+        pasteResultButton.titleLabel?.font = .systemFont(ofSize: 22, weight: .bold)
+        pasteResultButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 56).isActive = true
+        pasteResultButton.layer.cornerRadius = 12
+        pasteResultButton.clipsToBounds = true
+        pasteResultButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.18)
+        pasteResultButton.setTitleColor(.systemBlue, for: .normal)
+        pasteResultButton.addAction(UIAction { [weak self] _ in
+            self?.pasteLastVoiceResult()
+        }, for: .touchUpInside)
+        pasteResultButton.isHidden = true
+
         pageControl.selectedSegmentIndex = 0
         pageControl.addAction(UIAction { [weak self] _ in
             guard let self else { return }
@@ -133,6 +148,7 @@ final class KeyboardViewController: UIInputViewController {
         rootStack.addArrangedSubview(previewLabel)
         rootStack.addArrangedSubview(correctionButton)
         rootStack.addArrangedSubview(micButton)
+        rootStack.addArrangedSubview(pasteResultButton)
         rootStack.addArrangedSubview(pageControl)
         rootStack.addArrangedSubview(keysScrollView)
         rootStack.addArrangedSubview(makeActionRow())
@@ -353,19 +369,19 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func failVoiceLaunch(message: String) {
+        // Do NOT wipe App Group — host may still finish and write a ready result.
         awaitingVoiceSessionId = nil
         voiceLaunchDeadline = nil
-        VoiceBridge.clear()
         statusOverride = message
         // Keep light polling so host-completed results still insert.
-        startVoicePolling(interval: 0.25)
+        startVoicePolling(interval: 0.2)
         refreshChrome()
     }
 
     private func clearVoiceWait(message: String?) {
+        // UI-only clear. Never destroy a ready/last result the host already wrote.
         awaitingVoiceSessionId = nil
         voiceLaunchDeadline = nil
-        VoiceBridge.clear()
         statusOverride = message
         refreshChrome()
     }
@@ -389,12 +405,35 @@ final class KeyboardViewController: UIInputViewController {
         // After aggressive window, slow down polling a bit.
         if let until = aggressivePollUntil, Date() > until {
             aggressivePollUntil = nil
-            startVoicePolling(interval: 0.3)
+            startVoicePolling(interval: 0.25)
         }
 
         let payload = VoiceBridge.load()
 
+        // Ready session: always insert once.
+        if payload.status == .ready,
+           lastAutoInsertedSessionId != payload.sessionId {
+            insertReadyPayload(payload)
+            return
+        }
+
+        // Fresh last result: auto-insert only right after returning to the keyboard
+        // (aggressive window). Later, user can tap 「結果を貼る」.
+        if let last = VoiceBridge.loadLastResult(),
+           lastAutoInsertedSessionId != last.sessionId,
+           Date().timeIntervalSince(last.updatedAt) < 120,
+           let until = aggressivePollUntil,
+           Date() < until {
+            lastAutoInsertedSessionId = last.sessionId
+            insertTextFromVoice(raw: last.rawText, corrected: last.correctedText)
+            return
+        }
+
         if VoiceBridge.isTimedOut(payload) {
+            // Timed-out working session only — keep last result if any.
+            if payload.status == .requesting || payload.status == .listening {
+                VoiceBridge.clearSession()
+            }
             clearVoiceWait(message: hostVoiceHint)
             return
         }
@@ -408,77 +447,127 @@ final class KeyboardViewController: UIInputViewController {
             return
         }
 
-        // User returned to keyboard while still waiting — clear standby quickly if no progress.
+        // User returned while host still listening — keep App Group intact; just guide them.
         if let awaiting = awaitingVoiceSessionId,
-           let appeared = voiceBecameActiveAt,
-           Date().timeIntervalSince(appeared) > 4,
            payload.sessionId == awaiting,
            (payload.status == .requesting || payload.status == .listening) {
-            // Still listening is OK if host is open; but if user is back on keyboard, host is backgrounded.
-            // Clear stuck standby and point to host app.
-            clearVoiceWait(message: hostVoiceHint)
+            voiceLaunchDeadline = nil
+            statusOverride = "ホストで「完了」を押し、このアプリに戻ってください"
+            // After a while, drop sticky mic "待機中" but keep polling for ready.
+            if let appeared = voiceBecameActiveAt, Date().timeIntervalSince(appeared) > 8 {
+                awaitingVoiceSessionId = nil
+                statusOverride = hostVoiceHint + "（完了済みなら「結果を貼る」）"
+            }
+            refreshChrome()
             return
         }
 
-        if let awaiting = awaitingVoiceSessionId,
-           payload.sessionId == awaiting {
-            switch payload.status {
-            case .listening:
-                voiceLaunchDeadline = nil
-                statusOverride = "アプリで「完了」を押してから、ここに戻ってください"
-                refreshChrome()
-                return
-            case .requesting:
-                refreshChrome()
-                return
-            default:
-                break
-            }
-        } else if payload.status == .listening || payload.status == .requesting {
-            // Don't latch keyboard into long standby for host-started sessions while typing.
-            // Just wait for ready without sticky "待機中" mic label unless we started it.
-            if awaitingVoiceSessionId == nil {
-                // Opportunistically consume when ready only; ignore listening noise.
-            }
-        }
-
-        guard payload.status == .ready else {
-            if payload.status == .error {
-                let msg = payload.errorMessage?.isEmpty == false
-                    ? payload.errorMessage!
-                    : hostVoiceHint
-                clearVoiceWait(message: msg)
-            } else if payload.status == .cancelled {
-                clearVoiceWait(message: nil)
-            }
+        if payload.status == .listening || payload.status == .requesting {
+            // Host-started session: poll quietly until ready; show paste affordance.
+            refreshChrome()
             return
         }
 
-        insertReadyPayload(payload)
+        if payload.status == .error {
+            let msg = payload.errorMessage?.isEmpty == false
+                ? payload.errorMessage!
+                : hostVoiceHint
+            clearVoiceWait(message: msg)
+            return
+        }
+
+        if payload.status == .cancelled {
+            clearVoiceWait(message: nil)
+        }
     }
 
     private func insertReadyPayload(_ payload: VoicePayload) {
-        let raw = payload.rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty || !payload.correctedText.isEmpty else {
+        lastAutoInsertedSessionId = payload.sessionId
+        insertTextFromVoice(raw: payload.rawText, corrected: payload.correctedText)
+    }
+
+    private func insertTextFromVoice(raw: String, corrected: String) {
+        let trimmedRaw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedRaw.isEmpty || !trimmedCorrected.isEmpty else {
             clearVoiceWait(message: "言葉を認識できませんでした。アプリの「音声」でもう一度話してください。")
             return
         }
 
         reloadDictionary()
-        let text = payload.textForInsert(correctionEnabled: correctionEnabled, engine: engine)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else {
+        let text: String
+        if correctionEnabled {
+            text = trimmedCorrected.isEmpty
+                ? engine.correct(trimmedRaw, enabled: true)
+                : trimmedCorrected
+        } else {
+            text = trimmedRaw.isEmpty ? trimmedCorrected : trimmedRaw
+        }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
             clearVoiceWait(message: "言葉を認識できませんでした。アプリの「音声」でもう一度話してください。")
             return
         }
 
-        textDocumentProxy.insertText(text)
+        textDocumentProxy.insertText(trimmed)
         awaitingVoiceSessionId = nil
         voiceLaunchDeadline = nil
-        VoiceBridge.clear()
+        VoiceBridge.markInserted()
+        // Keep last result so 「結果を貼る」 still works if the field did not accept insert.
         composition = ""
-        statusOverride = "入りました: \(text)"
+        statusOverride = "入りました: \(trimmed)（入っていなければ「結果を貼る」）"
         refreshChrome()
+    }
+
+    /// Manual fallback when auto-insert did not run (App Group / clipboard).
+    private func pasteLastVoiceResult() {
+        reloadDictionary()
+
+        if let last = VoiceBridge.loadLastResult() {
+            let text = last.textForInsert(correctionEnabled: correctionEnabled, engine: engine)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return }
+            textDocumentProxy.insertText(text)
+            VoiceBridge.markInserted()
+            composition = ""
+            statusOverride = "貼り付けました: \(text)"
+            refreshChrome()
+            return
+        }
+
+        let payload = VoiceBridge.load()
+        if payload.status == .ready {
+            insertReadyPayload(payload)
+            return
+        }
+
+        if let saved = VoiceBridge.loadClipboardText() {
+            textDocumentProxy.insertText(saved)
+            composition = ""
+            statusOverride = "貼り付けました: \(saved)"
+            refreshChrome()
+            return
+        }
+
+        if let clip = UIPasteboard.general.string?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !clip.isEmpty {
+            textDocumentProxy.insertText(clip)
+            composition = ""
+            statusOverride = "貼り付けました: \(clip)"
+            refreshChrome()
+            return
+        }
+
+        statusOverride = "貼る結果がありません。アプリの「音声」でもう一度話して「完了」を押してください。"
+        refreshChrome()
+    }
+
+    private var hasPasteableVoiceResult: Bool {
+        if VoiceBridge.loadLastResult() != nil { return true }
+        if VoiceBridge.load().status == .ready { return true }
+        if VoiceBridge.loadClipboardText() != nil { return true }
+        return false
     }
 
     // MARK: - Actions
@@ -565,6 +654,12 @@ final class KeyboardViewController: UIInputViewController {
             micButton.setTitle("🎤 待機中…", for: .normal)
         } else {
             micButton.setTitle("🎤 アプリで音声", for: .normal)
+        }
+
+        let canPaste = hasPasteableVoiceResult
+        pasteResultButton.isHidden = !canPaste
+        if canPaste {
+            pasteResultButton.setTitle("📋 結果を貼る", for: .normal)
         }
     }
 

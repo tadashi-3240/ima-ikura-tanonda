@@ -80,9 +80,31 @@ struct VoicePayload: Codable, Equatable {
     }
 }
 
+/// Durable last result — survives keyboard standby clears so Notes can still insert/paste.
+struct LastVoiceResult: Codable, Equatable {
+    var sessionId: UUID
+    var rawText: String
+    var correctedText: String
+    var updatedAt: Date
+
+    func textForInsert(correctionEnabled: Bool, engine: CorrectionEngine) -> String {
+        if correctionEnabled {
+            if !correctedText.isEmpty { return correctedText }
+            return engine.correct(rawText, enabled: true)
+        }
+        return rawText
+    }
+
+    var isFresh: Bool {
+        Date().timeIntervalSince(updatedAt) < VoiceBridge.lastResultTTL
+    }
+}
+
 enum VoiceBridge {
-    /// Abandon abandoned sessions (host never completed).
-    static let sessionTimeout: TimeInterval = 40
+    /// Abandon abandoned working sessions (host never completed).
+    static let sessionTimeout: TimeInterval = 90
+    /// Keep last completed result available for paste/insert.
+    static let lastResultTTL: TimeInterval = 10 * 60
 
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -114,8 +136,51 @@ enum VoiceBridge {
         return true
     }
 
+    static func loadLastResult() -> LastVoiceResult? {
+        guard let defaults = AppGroupConstants.sharedDefaults,
+              let data = defaults.data(forKey: AppGroupConstants.lastVoiceResultKey),
+              let result = try? decoder.decode(LastVoiceResult.self, from: data),
+              result.isFresh else {
+            return nil
+        }
+        return result
+    }
+
+    @discardableResult
+    static func saveLastResult(_ result: LastVoiceResult) -> Bool {
+        guard let defaults = AppGroupConstants.sharedDefaults,
+              let data = try? encoder.encode(result) else { return false }
+        defaults.set(data, forKey: AppGroupConstants.lastVoiceResultKey)
+        defaults.synchronize()
+        return true
+    }
+
+    static func clearLastResult() {
+        AppGroupConstants.sharedDefaults?.removeObject(forKey: AppGroupConstants.lastVoiceResultKey)
+        AppGroupConstants.sharedDefaults?.removeObject(forKey: AppGroupConstants.lastClipboardTextKey)
+        AppGroupConstants.sharedDefaults?.synchronize()
+    }
+
+    static func saveClipboardText(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        AppGroupConstants.sharedDefaults?.set(trimmed, forKey: AppGroupConstants.lastClipboardTextKey)
+        AppGroupConstants.sharedDefaults?.synchronize()
+    }
+
+    static func loadClipboardText() -> String? {
+        guard let text = AppGroupConstants.sharedDefaults?
+            .string(forKey: AppGroupConstants.lastClipboardTextKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else {
+            return nil
+        }
+        return text
+    }
+
     @discardableResult
     static func beginRequest() -> VoicePayload {
+        prepareForNewRequest()
         let now = Date()
         let payload = VoicePayload(
             status: .requesting,
@@ -148,6 +213,14 @@ enum VoiceBridge {
         payload.errorMessage = nil
         payload.updatedAt = Date()
         _ = save(payload)
+        _ = saveLastResult(
+            LastVoiceResult(
+                sessionId: sessionId,
+                rawText: rawText,
+                correctedText: correctedText,
+                updatedAt: Date()
+            )
+        )
     }
 
     static func markError(sessionId: UUID, message: String) {
@@ -167,8 +240,24 @@ enum VoiceBridge {
         _ = save(payload)
     }
 
-    static func clear() {
+    /// Reset session to idle. Does NOT erase last completed result (paste/insert fallback).
+    static func clearSession() {
         _ = save(.idle())
+    }
+
+    /// Backward-compatible name used by older call sites — session only.
+    static func clear() {
+        clearSession()
+    }
+
+    /// After an insert attempt: drop ready session, keep last result briefly for 「結果を貼る」.
+    static func markInserted() {
+        clearSession()
+    }
+
+    /// User started a brand-new voice take — drop previous leftovers.
+    static func prepareForNewRequest() {
+        clearLastResult()
     }
 
     static func isTimedOut(_ payload: VoicePayload) -> Bool {

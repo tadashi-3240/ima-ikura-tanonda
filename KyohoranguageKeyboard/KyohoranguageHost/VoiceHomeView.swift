@@ -49,9 +49,9 @@ struct VoiceHomeView: View {
                         .font(.title2.weight(.bold))
                     Text("① このボタンを押す")
                     Text("② 「話してください」と出たら話す")
-                    Text("③ 「完了」を押す")
-                    Text("④ メモ（や LINE）に戻る")
-                    Text("⑤ 協豊キーボードを出しておく")
+                    Text("③ 「完了」を押す（補正後を確認）")
+                    Text("④ 「メモに戻る」→ メモ／LINE を開く")
+                    Text("⑤ 協豊キーボードを出す（入らなければ「結果を貼る」）")
                 }
                 .font(.title3)
                 .frame(maxWidth: .infinity, alignment: .leading)
