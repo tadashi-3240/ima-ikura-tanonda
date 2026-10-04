@@ -15,6 +15,8 @@ final class KeyboardViewController: UIInputViewController {
     private var keyPage: KeyPage = .hiragana
     private var awaitingVoiceSessionId: UUID?
     private var voicePollTimer: Timer?
+    private var voiceLaunchDeadline: Date?
+    private var statusOverride: String?
 
     private let rootStack = UIStackView()
     private let compositionLabel = UILabel()
@@ -37,15 +39,13 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillAppear(animated)
         reloadDictionary()
         refreshChrome()
+        // Always check App Group — user may have finished voice from the host home button.
         tryConsumeVoiceResult()
-        if awaitingVoiceSessionId != nil {
-            startVoicePolling()
-        }
+        startVoicePolling()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        // Keep polling briefly is unnecessary off-screen; restart on appear.
         stopVoicePolling()
     }
 
@@ -283,37 +283,92 @@ final class KeyboardViewController: UIInputViewController {
 
     private func startVoiceInput() {
         reloadDictionary()
+        statusOverride = nil
+
+        guard hasFullAccess else {
+            failVoiceLaunch(
+                message: "フルアクセスがオフです。設定→キーボード→協豊ランゲージ→フルアクセスを許可。または本体アプリの「音声」から入力してください。"
+            )
+            return
+        }
+
         let payload = VoiceBridge.beginRequest()
         awaitingVoiceSessionId = payload.sessionId
-        previewLabel.text = "音声アプリを開いています… 完了後、ここに戻ると文字が入ります"
+        voiceLaunchDeadline = Date().addingTimeInterval(2.5)
+        statusOverride = "本体アプリを開いています…"
+        refreshChrome()
         startVoicePolling()
         openHostVoiceURL()
     }
 
+    /// Prefer UIApplication.open (with completion) via responder chain; fall back to extensionContext.open.
+    /// Both require Full Access on current iOS. Failures must surface a clear keyboard message.
     private func openHostVoiceURL() {
         let url = AppGroupConstants.voiceURL
-        // Public API for extensions.
-        extensionContext?.open(url) { [weak self] success in
+
+        if openURLWithUIApplication(url) {
+            return
+        }
+
+        guard let context = extensionContext else {
+            failVoiceLaunch(
+                message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
+            )
+            return
+        }
+
+        context.open(url) { [weak self] success in
             DispatchQueue.main.async {
+                guard let self else { return }
                 if !success {
-                    self?.openURLViaResponderChain(url)
+                    self.failVoiceLaunch(
+                        message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
+                    )
                 }
             }
         }
-        // Also try responder-chain openURL (still uses UIApplication.open publicly via the system).
-        openURLViaResponderChain(url)
     }
 
-    private func openURLViaResponderChain(_ url: URL) {
+    @discardableResult
+    private func openURLWithUIApplication(_ url: URL) -> Bool {
         var responder: UIResponder? = self
-        let selector = sel_registerName("openURL:")
         while let current = responder {
-            if current.responds(to: selector) {
-                current.perform(selector, with: url)
-                return
+            if let application = current as? UIApplication {
+                application.open(url, options: [:]) { [weak self] success in
+                    DispatchQueue.main.async {
+                        guard let self else { return }
+                        if success {
+                            self.statusOverride = "音声入力中… 本体で「完了」を押し、このアプリに戻ってください"
+                            self.refreshChrome()
+                        } else {
+                            self.failVoiceLaunch(
+                                message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
+                            )
+                        }
+                    }
+                }
+                return true
             }
             responder = current.next
         }
+        return false
+    }
+
+    private func failVoiceLaunch(message: String) {
+        awaitingVoiceSessionId = nil
+        voiceLaunchDeadline = nil
+        stopVoicePolling()
+        VoiceBridge.clear()
+        statusOverride = message
+        refreshChrome()
+    }
+
+    private func clearVoiceWait(message: String?) {
+        awaitingVoiceSessionId = nil
+        voiceLaunchDeadline = nil
+        VoiceBridge.clear()
+        statusOverride = message
+        refreshChrome()
     }
 
     private func startVoicePolling() {
@@ -334,58 +389,72 @@ final class KeyboardViewController: UIInputViewController {
     private func tryConsumeVoiceResult() {
         let payload = VoiceBridge.load()
 
+        // Stuck waiting (host never opened / user abandoned) — clear after timeout.
+        if VoiceBridge.isTimedOut(payload) {
+            clearVoiceWait(message: "音声入力がタイムアウトしました。本体アプリの「音声」タブからもう一度試してください。")
+            return
+        }
+
+        // Host never reached listening shortly after launch attempt.
+        if let deadline = voiceLaunchDeadline,
+           Date() > deadline,
+           awaitingVoiceSessionId != nil,
+           payload.status == .requesting {
+            failVoiceLaunch(
+                message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
+            )
+            return
+        }
+
         if let awaiting = awaitingVoiceSessionId,
-           payload.sessionId == awaiting,
-           payload.status == .listening || payload.status == .requesting {
-            previewLabel.text = "音声入力中… ホストで「完了」を押し、このアプリに戻ってください"
+           payload.sessionId == awaiting {
+            switch payload.status {
+            case .listening:
+                voiceLaunchDeadline = nil
+                statusOverride = "音声入力中… 本体で「完了」を押し、このアプリに戻ってください"
+                refreshChrome()
+                return
+            case .requesting:
+                statusOverride = statusOverride ?? "本体アプリを開いています…"
+                refreshChrome()
+                return
+            default:
+                break
+            }
+        } else if payload.status == .listening || payload.status == .requesting {
+            // Host-started session (manual home button) while keyboard is visible.
+            awaitingVoiceSessionId = payload.sessionId
+            statusOverride = "音声入力中… 本体で「完了」を押し、このアプリに戻ってください"
+            refreshChrome()
             return
         }
 
         guard payload.status == .ready else {
             if payload.status == .error {
-                previewLabel.text = "音声エラー: \(payload.errorMessage ?? "不明")"
-                if awaitingVoiceSessionId != nil {
-                    awaitingVoiceSessionId = nil
-                    stopVoicePolling()
-                    VoiceBridge.clear()
-                }
+                clearVoiceWait(message: "音声エラー: \(payload.errorMessage ?? "不明")。本体アプリの「音声」から再試行してください。")
             } else if payload.status == .cancelled {
-                awaitingVoiceSessionId = nil
-                stopVoicePolling()
-                VoiceBridge.clear()
-                refreshChrome()
+                clearVoiceWait(message: nil)
             }
             return
         }
 
         let raw = payload.rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else {
-            VoiceBridge.clear()
-            awaitingVoiceSessionId = nil
-            stopVoicePolling()
-            refreshChrome()
+            clearVoiceWait(message: "音声結果が空でした。もう一度試してください。")
             return
         }
 
         reloadDictionary()
         let text = engine.correct(raw, enabled: correctionEnabled)
         textDocumentProxy.insertText(text)
-        VoiceBridge.clear()
         awaitingVoiceSessionId = nil
-        stopVoicePolling()
+        voiceLaunchDeadline = nil
+        VoiceBridge.clear()
         composition = ""
-        previewLabel.text = correctionEnabled && text != raw
+        statusOverride = correctionEnabled && text != raw
             ? "音声を挿入しました: \(text)（元: \(raw)）"
             : "音声を挿入しました: \(text)"
-        refreshChromeKeepingVoiceNote()
-    }
-
-    private func refreshChromeKeepingVoiceNote() {
-        let note = previewLabel.text
         refreshChrome()
-        if let note, note.contains("音声を挿入") {
-            previewLabel.text = note
-        }
     }
 
     // MARK: - Actions
@@ -408,11 +477,13 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func appendToComposition(_ text: String) {
+        statusOverride = nil
         composition.append(text)
         refreshChrome()
     }
 
     private func deleteBackwardComposition() {
+        statusOverride = nil
         guard !composition.isEmpty else {
             textDocumentProxy.deleteBackward()
             return
@@ -437,19 +508,26 @@ final class KeyboardViewController: UIInputViewController {
         compositionLabel.text = composition.isEmpty ? "ここに入力…" : composition
         compositionLabel.textColor = composition.isEmpty ? .tertiaryLabel : .label
 
-        if awaitingVoiceSessionId == nil {
-            if composition.isEmpty {
-                previewLabel.text = correctionEnabled
-                    ? "補正ON：確定／音声で辞書を適用します"
-                    : "補正OFF：入力どおり確定します"
-            } else if correctionEnabled {
-                let corrected = previewText
-                previewLabel.text = corrected == composition
-                    ? "補正後: （変化なし）"
-                    : "補正後: \(corrected)"
-            } else {
-                previewLabel.text = "そのまま: \(composition)"
-            }
+        if let statusOverride, !statusOverride.isEmpty {
+            previewLabel.text = statusOverride
+            previewLabel.textColor = statusOverride.contains("開けません") || statusOverride.contains("フルアクセス") || statusOverride.contains("エラー") || statusOverride.contains("タイムアウト")
+                ? .systemOrange
+                : .secondaryLabel
+            previewLabel.numberOfLines = 3
+        } else if composition.isEmpty {
+            previewLabel.text = correctionEnabled
+                ? "補正ON：確定／音声で辞書を適用します"
+                : "補正OFF：入力どおり確定します"
+            previewLabel.textColor = .secondaryLabel
+        } else if correctionEnabled {
+            let corrected = previewText
+            previewLabel.text = corrected == composition
+                ? "補正後: （変化なし）"
+                : "補正後: \(corrected)"
+            previewLabel.textColor = .secondaryLabel
+        } else {
+            previewLabel.text = "そのまま: \(composition)"
+            previewLabel.textColor = .secondaryLabel
         }
 
         let on = correctionEnabled

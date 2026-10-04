@@ -7,6 +7,15 @@ struct ContentView: View {
     var body: some View {
         TabView {
             NavigationStack {
+                VoiceHomeView {
+                    onStartVoice?()
+                }
+            }
+            .tabItem {
+                Label("音声", systemImage: "mic.fill")
+            }
+
+            NavigationStack {
                 DictionaryListView(viewModel: dictionaryViewModel)
             }
             .tabItem {

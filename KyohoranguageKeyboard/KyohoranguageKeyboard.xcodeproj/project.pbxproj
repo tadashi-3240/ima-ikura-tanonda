@@ -28,6 +28,7 @@
 		A10000000000000000000014 /* VoiceBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* VoiceBridge.swift */; };
 		A10000000000000000000015 /* SpeechRecognitionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SpeechRecognitionController.swift */; };
 		A10000000000000000000016 /* VoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* VoiceInputView.swift */; };
+		A10000000000000000000017 /* VoiceHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* VoiceHomeView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 		A20000000000000000000033 /* SetupGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupGuideView.swift; sourceTree = "<group>"; };
 		A20000000000000000000034 /* SpeechRecognitionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionController.swift; sourceTree = "<group>"; };
 		A20000000000000000000035 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
+		A20000000000000000000036 /* VoiceHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceHomeView.swift; sourceTree = "<group>"; };
 		A20000000000000000000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000022 /* KyohoranguageKeyboardExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KyohoranguageKeyboardExt.entitlements; sourceTree = "<group>"; };
 		A30000000000000000000001 /* KyohoranguageHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KyohoranguageHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -117,6 +119,7 @@
 				A20000000000000000000033 /* SetupGuideView.swift */,
 				A20000000000000000000034 /* SpeechRecognitionController.swift */,
 				A20000000000000000000035 /* VoiceInputView.swift */,
+				A20000000000000000000036 /* VoiceHomeView.swift */,
 				A20000000000000000000003 /* Assets.xcassets */,
 				A20000000000000000000004 /* Info.plist */,
 				A20000000000000000000005 /* KyohoranguageHost.entitlements */,
@@ -263,6 +266,7 @@
 				A10000000000000000000012 /* SetupGuideView.swift in Sources */,
 				A10000000000000000000015 /* SpeechRecognitionController.swift in Sources */,
 				A10000000000000000000016 /* VoiceInputView.swift in Sources */,
+				A10000000000000000000017 /* VoiceHomeView.swift in Sources */,
 				A10000000000000000000004 /* AppGroupConstants.swift in Sources */,
 				A10000000000000000000005 /* DictionaryEntry.swift in Sources */,
 				A10000000000000000000006 /* DictionaryStore.swift in Sources */,

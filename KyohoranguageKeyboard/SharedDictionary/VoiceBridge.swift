@@ -2,13 +2,9 @@ import Foundation
 
 /// Shared voice session between Keyboard Extension and host app (App Group only).
 enum VoiceSessionStatus: String, Codable, Equatable {
-    /// Nothing pending.
     case idle
-    /// Keyboard asked the host to start listening.
     case requesting
-    /// Host is recording / recognizing.
     case listening
-    /// Final text is ready for the keyboard to insert.
     case ready
     case cancelled
     case error
@@ -17,23 +13,63 @@ enum VoiceSessionStatus: String, Codable, Equatable {
 struct VoicePayload: Codable, Equatable {
     var status: VoiceSessionStatus
     var sessionId: UUID
-    /// Raw speech recognition text (before dictionary correction).
     var rawText: String
     var errorMessage: String?
     var updatedAt: Date
+    /// When the keyboard (or host) started this session — used for timeouts.
+    var requestedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case status, sessionId, rawText, errorMessage, updatedAt, requestedAt
+    }
+
+    init(
+        status: VoiceSessionStatus,
+        sessionId: UUID,
+        rawText: String,
+        errorMessage: String?,
+        updatedAt: Date,
+        requestedAt: Date
+    ) {
+        self.status = status
+        self.sessionId = sessionId
+        self.rawText = rawText
+        self.errorMessage = errorMessage
+        self.updatedAt = updatedAt
+        self.requestedAt = requestedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decode(VoiceSessionStatus.self, forKey: .status)
+        sessionId = try container.decode(UUID.self, forKey: .sessionId)
+        rawText = try container.decodeIfPresent(String.self, forKey: .rawText) ?? ""
+        errorMessage = try container.decodeIfPresent(String.self, forKey: .errorMessage)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        requestedAt = try container.decodeIfPresent(Date.self, forKey: .requestedAt) ?? updatedAt
+    }
 
     static func idle() -> VoicePayload {
-        VoicePayload(
+        let now = Date()
+        return VoicePayload(
             status: .idle,
             sessionId: UUID(),
             rawText: "",
             errorMessage: nil,
-            updatedAt: Date()
+            updatedAt: now,
+            requestedAt: now
         )
+    }
+
+    var age: TimeInterval {
+        Date().timeIntervalSince(requestedAt)
     }
 }
 
 enum VoiceBridge {
+    /// Give up waiting for host open / completion after this many seconds.
+    static let sessionTimeout: TimeInterval = 45
+
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -64,15 +100,16 @@ enum VoiceBridge {
         return true
     }
 
-    /// Keyboard starts a new voice request before opening the host.
     @discardableResult
     static func beginRequest() -> VoicePayload {
+        let now = Date()
         let payload = VoicePayload(
             status: .requesting,
             sessionId: UUID(),
             rawText: "",
             errorMessage: nil,
-            updatedAt: Date()
+            updatedAt: now,
+            requestedAt: now
         )
         _ = save(payload)
         return payload
@@ -116,5 +153,15 @@ enum VoiceBridge {
 
     static func clear() {
         _ = save(.idle())
+    }
+
+    /// True when a session has been waiting too long without a ready result.
+    static func isTimedOut(_ payload: VoicePayload) -> Bool {
+        switch payload.status {
+        case .requesting, .listening:
+            return payload.age >= sessionTimeout
+        default:
+            return false
+        }
     }
 }

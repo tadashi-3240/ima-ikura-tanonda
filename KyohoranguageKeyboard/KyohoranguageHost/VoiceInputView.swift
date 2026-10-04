@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-screen voice UI opened from the keyboard via `kyohoranguage://voice`.
+/// Full-screen voice UI (from keyboard deep link or host home button).
 struct VoiceInputView: View {
     let sessionId: UUID
     var onFinished: () -> Void
@@ -83,10 +83,19 @@ struct VoiceInputView: View {
         }
         .padding(24)
         .task {
-            guard !didAutoStart else { return }
-            didAutoStart = true
-            await speech.prepareAndStart(sessionId: sessionId)
+            await autoStartIfNeeded()
         }
+        .onAppear {
+            Task { await autoStartIfNeeded() }
+        }
+    }
+
+    private func autoStartIfNeeded() async {
+        guard !didAutoStart else { return }
+        didAutoStart = true
+        // Ensure seed dictionary exists for preview correction.
+        _ = store.seedInitialEntriesIfEmpty()
+        await speech.prepareAndStart(sessionId: sessionId)
     }
 
     @ViewBuilder
@@ -119,11 +128,10 @@ struct VoiceInputView: View {
         let raw = speech.finish()
         guard !raw.isEmpty else {
             VoiceBridge.markError(sessionId: sessionId, message: "empty transcript")
-            finishedMessage = "声を認識できませんでした。もう一度マイクから試してください。"
+            finishedMessage = "声を認識できませんでした。もう一度試してください。"
             return
         }
 
-        // Store raw text; keyboard applies CorrectionEngine using current ON/OFF.
         VoiceBridge.markReady(sessionId: sessionId, rawText: raw)
         finishedMessage = "完了しました。\n前のアプリ（メモ / LINE など）に戻ると、文字が入ります。"
     }
