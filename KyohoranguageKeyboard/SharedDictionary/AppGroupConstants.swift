@@ -10,6 +10,15 @@ enum AppGroupConstants {
     /// Keyboard preference: dictionary correction enabled.
     static let correctionEnabledKey = "kyohoranguage.keyboard.correctionEnabled"
 
+    /// Shared voice session payload (JSON).
+    static let voicePayloadKey = "kyohoranguage.voice.payload.v1"
+
+    /// Custom URL scheme for opening the host voice UI from the keyboard.
+    static let urlScheme = "kyohoranguage"
+
+    /// Host voice deep link (public URL scheme).
+    static let voiceURL = URL(string: "kyohoranguage://voice")!
+
     static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: suiteName)
     }

@@ -1,6 +1,6 @@
 import UIKit
 
-/// Custom keyboard: composition buffer → optional dictionary correction → insert into host field.
+/// Custom keyboard: composition / voice → optional dictionary correction → insert into host field.
 final class KeyboardViewController: UIInputViewController {
     private enum KeyPage: Int {
         case hiragana = 0
@@ -13,11 +13,14 @@ final class KeyboardViewController: UIInputViewController {
     private var composition = ""
     private var correctionEnabled = true
     private var keyPage: KeyPage = .hiragana
+    private var awaitingVoiceSessionId: UUID?
+    private var voicePollTimer: Timer?
 
     private let rootStack = UIStackView()
     private let compositionLabel = UILabel()
     private let previewLabel = UILabel()
     private let correctionButton = UIButton(type: .system)
+    private let micButton = UIButton(type: .system)
     private let pageControl = UISegmentedControl(items: ["あ", "ア", "候補"])
     private let keysScrollView = UIScrollView()
     private let keysContainer = UIStackView()
@@ -34,6 +37,20 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillAppear(animated)
         reloadDictionary()
         refreshChrome()
+        tryConsumeVoiceResult()
+        if awaitingVoiceSessionId != nil {
+            startVoicePolling()
+        }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        // Keep polling briefly is unnecessary off-screen; restart on appear.
+        stopVoicePolling()
+    }
+
+    deinit {
+        voicePollTimer?.invalidate()
     }
 
     // MARK: - Dictionary
@@ -59,14 +76,10 @@ final class KeyboardViewController: UIInputViewController {
         compositionLabel.font = .systemFont(ofSize: 22, weight: .regular)
         compositionLabel.numberOfLines = 2
         compositionLabel.textAlignment = .left
-        compositionLabel.backgroundColor = UIColor.systemBackground
-        compositionLabel.layer.cornerRadius = 10
-        compositionLabel.clipsToBounds = true
-        compositionLabel.layoutMargins = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
 
         previewLabel.font = .systemFont(ofSize: 16, weight: .medium)
         previewLabel.textColor = .secondaryLabel
-        previewLabel.numberOfLines = 1
+        previewLabel.numberOfLines = 2
 
         correctionButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
         correctionButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
@@ -74,6 +87,17 @@ final class KeyboardViewController: UIInputViewController {
         correctionButton.clipsToBounds = true
         correctionButton.addAction(UIAction { [weak self] _ in
             self?.toggleCorrection()
+        }, for: .touchUpInside)
+
+        micButton.setTitle("🎤 音声入力", for: .normal)
+        micButton.titleLabel?.font = .systemFont(ofSize: 24, weight: .bold)
+        micButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 64).isActive = true
+        micButton.layer.cornerRadius = 14
+        micButton.clipsToBounds = true
+        micButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.18)
+        micButton.setTitleColor(.systemRed, for: .normal)
+        micButton.addAction(UIAction { [weak self] _ in
+            self?.startVoiceInput()
         }, for: .touchUpInside)
 
         pageControl.selectedSegmentIndex = 0
@@ -90,7 +114,7 @@ final class KeyboardViewController: UIInputViewController {
         keysScrollView.alwaysBounceVertical = true
         keysScrollView.showsVerticalScrollIndicator = true
         keysScrollView.addSubview(keysContainer)
-        keysScrollView.heightAnchor.constraint(equalToConstant: 220).isActive = true
+        keysScrollView.heightAnchor.constraint(equalToConstant: 200).isActive = true
 
         NSLayoutConstraint.activate([
             keysContainer.leadingAnchor.constraint(equalTo: keysScrollView.contentLayoutGuide.leadingAnchor),
@@ -100,12 +124,10 @@ final class KeyboardViewController: UIInputViewController {
             keysContainer.widthAnchor.constraint(equalTo: keysScrollView.frameLayoutGuide.widthAnchor),
         ])
 
-        let topRow = UIStackView(arrangedSubviews: [correctionButton])
-        topRow.axis = .horizontal
-
         rootStack.addArrangedSubview(padded(compositionLabel, height: 56))
         rootStack.addArrangedSubview(previewLabel)
-        rootStack.addArrangedSubview(topRow)
+        rootStack.addArrangedSubview(correctionButton)
+        rootStack.addArrangedSubview(micButton)
         rootStack.addArrangedSubview(pageControl)
         rootStack.addArrangedSubview(keysScrollView)
         rootStack.addArrangedSubview(makeActionRow())
@@ -115,7 +137,7 @@ final class KeyboardViewController: UIInputViewController {
             rootStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
             rootStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
             rootStack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -8),
-            view.heightAnchor.constraint(greaterThanOrEqualToConstant: 380),
+            view.heightAnchor.constraint(greaterThanOrEqualToConstant: 420),
         ])
 
         rebuildKeys()
@@ -217,7 +239,6 @@ final class KeyboardViewController: UIInputViewController {
             chips.append(contentsOf: entry.misrecognitions)
             chips.append(entry.correct)
         }
-        // Stable unique order
         var seen = Set<String>()
         let unique = chips.filter { seen.insert($0).inserted }
         return stride(from: 0, to: unique.count, by: 3).map { start in
@@ -256,6 +277,115 @@ final class KeyboardViewController: UIInputViewController {
 
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
+    }
+
+    // MARK: - Voice
+
+    private func startVoiceInput() {
+        reloadDictionary()
+        let payload = VoiceBridge.beginRequest()
+        awaitingVoiceSessionId = payload.sessionId
+        previewLabel.text = "音声アプリを開いています… 完了後、ここに戻ると文字が入ります"
+        startVoicePolling()
+        openHostVoiceURL()
+    }
+
+    private func openHostVoiceURL() {
+        let url = AppGroupConstants.voiceURL
+        // Public API for extensions.
+        extensionContext?.open(url) { [weak self] success in
+            DispatchQueue.main.async {
+                if !success {
+                    self?.openURLViaResponderChain(url)
+                }
+            }
+        }
+        // Also try responder-chain openURL (still uses UIApplication.open publicly via the system).
+        openURLViaResponderChain(url)
+    }
+
+    private func openURLViaResponderChain(_ url: URL) {
+        var responder: UIResponder? = self
+        let selector = sel_registerName("openURL:")
+        while let current = responder {
+            if current.responds(to: selector) {
+                current.perform(selector, with: url)
+                return
+            }
+            responder = current.next
+        }
+    }
+
+    private func startVoicePolling() {
+        stopVoicePolling()
+        voicePollTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+            self?.tryConsumeVoiceResult()
+        }
+        if let voicePollTimer {
+            RunLoop.main.add(voicePollTimer, forMode: .common)
+        }
+    }
+
+    private func stopVoicePolling() {
+        voicePollTimer?.invalidate()
+        voicePollTimer = nil
+    }
+
+    private func tryConsumeVoiceResult() {
+        let payload = VoiceBridge.load()
+
+        if let awaiting = awaitingVoiceSessionId,
+           payload.sessionId == awaiting,
+           payload.status == .listening || payload.status == .requesting {
+            previewLabel.text = "音声入力中… ホストで「完了」を押し、このアプリに戻ってください"
+            return
+        }
+
+        guard payload.status == .ready else {
+            if payload.status == .error {
+                previewLabel.text = "音声エラー: \(payload.errorMessage ?? "不明")"
+                if awaitingVoiceSessionId != nil {
+                    awaitingVoiceSessionId = nil
+                    stopVoicePolling()
+                    VoiceBridge.clear()
+                }
+            } else if payload.status == .cancelled {
+                awaitingVoiceSessionId = nil
+                stopVoicePolling()
+                VoiceBridge.clear()
+                refreshChrome()
+            }
+            return
+        }
+
+        let raw = payload.rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            VoiceBridge.clear()
+            awaitingVoiceSessionId = nil
+            stopVoicePolling()
+            refreshChrome()
+            return
+        }
+
+        reloadDictionary()
+        let text = engine.correct(raw, enabled: correctionEnabled)
+        textDocumentProxy.insertText(text)
+        VoiceBridge.clear()
+        awaitingVoiceSessionId = nil
+        stopVoicePolling()
+        composition = ""
+        previewLabel.text = correctionEnabled && text != raw
+            ? "音声を挿入しました: \(text)（元: \(raw)）"
+            : "音声を挿入しました: \(text)"
+        refreshChromeKeepingVoiceNote()
+    }
+
+    private func refreshChromeKeepingVoiceNote() {
+        let note = previewLabel.text
+        refreshChrome()
+        if let note, note.contains("音声を挿入") {
+            previewLabel.text = note
+        }
     }
 
     // MARK: - Actions
@@ -307,15 +437,19 @@ final class KeyboardViewController: UIInputViewController {
         compositionLabel.text = composition.isEmpty ? "ここに入力…" : composition
         compositionLabel.textColor = composition.isEmpty ? .tertiaryLabel : .label
 
-        if composition.isEmpty {
-            previewLabel.text = correctionEnabled ? "補正ON：確定で辞書を適用します" : "補正OFF：入力どおり確定します"
-        } else if correctionEnabled {
-            let corrected = previewText
-            previewLabel.text = corrected == composition
-                ? "補正後: （変化なし）"
-                : "補正後: \(corrected)"
-        } else {
-            previewLabel.text = "そのまま: \(composition)"
+        if awaitingVoiceSessionId == nil {
+            if composition.isEmpty {
+                previewLabel.text = correctionEnabled
+                    ? "補正ON：確定／音声で辞書を適用します"
+                    : "補正OFF：入力どおり確定します"
+            } else if correctionEnabled {
+                let corrected = previewText
+                previewLabel.text = corrected == composition
+                    ? "補正後: （変化なし）"
+                    : "補正後: \(corrected)"
+            } else {
+                previewLabel.text = "そのまま: \(composition)"
+            }
         }
 
         let on = correctionEnabled
@@ -324,6 +458,12 @@ final class KeyboardViewController: UIInputViewController {
             ? UIColor.systemGreen.withAlphaComponent(0.25)
             : UIColor.tertiarySystemFill
         correctionButton.setTitleColor(on ? .systemGreen : .label, for: .normal)
+
+        if awaitingVoiceSessionId != nil {
+            micButton.setTitle("🎤 音声待機中…", for: .normal)
+        } else {
+            micButton.setTitle("🎤 音声入力", for: .normal)
+        }
     }
 
     // MARK: - Dakuten helpers

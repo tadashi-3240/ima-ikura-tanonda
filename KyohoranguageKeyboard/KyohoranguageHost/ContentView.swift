@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    var onStartVoice: (() -> Void)?
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
 
     var body: some View {
@@ -13,7 +14,7 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                SetupGuideView()
+                SetupGuideView(onStartVoice: onStartVoice)
             }
             .tabItem {
                 Label("セットアップ", systemImage: "gearshape")

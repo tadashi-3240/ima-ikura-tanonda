@@ -1,19 +1,21 @@
 # 協豊ランゲージ（キーボード MVP）
 
-Xcode で `KyohoranguageKeyboard.xcodeproj` を開き、ターゲット **KyohoranguageHost** を実機に Run してください。
+Xcode で `KyohoranguageKeyboard.xcodeproj` を開き、**KyohoranguageHost** を実機 Run。
 
-計画書: Project store `docs/mvp-plan.md`（`/cursor/stores/self/docs/mvp-plan.md`）
+計画書: `/cursor/stores/self/docs/mvp-plan.md`
 
 ## 現状
 
-- **マイルストーン1:** 設定・地球儀に「協豊ランゲージ」表示
-- **マイルストーン2:** 協豊専用辞書補正 + ホスト CRUD（音声なし）
+1. キーボード一覧・地球儀表示
+2. 協豊専用辞書補正 + ホスト CRUD
+3. **音声入力（ホスト経由）+ 辞書補正**
 
 ## ターゲット
 
-| ターゲット | Bundle ID | 表示名 |
-| --- | --- | --- |
-| KyohoranguageHost | `jp.kyohoranguage.app` | 協豊ランゲージ |
-| KyohoranguageKeyboardExt | `jp.kyohoranguage.app.keyboard` | 協豊ランゲージ |
+| ターゲット | Bundle ID |
+| --- | --- |
+| KyohoranguageHost | `jp.kyohoranguage.app` |
+| KyohoranguageKeyboardExt | `jp.kyohoranguage.app.keyboard` |
 
-App Group: `group.jp.kyohoranguage.shared`
+App Group: `group.jp.kyohoranguage.shared`  
+URL Scheme: `kyohoranguage://voice`

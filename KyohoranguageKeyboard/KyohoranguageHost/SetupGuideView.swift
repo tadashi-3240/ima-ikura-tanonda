@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct SetupGuideView: View {
+    var onStartVoice: (() -> Void)?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("協豊ランゲージ")
                     .font(.largeTitle.bold())
 
-                Text("カスタムキーボードを追加し、辞書補正を試してください。")
+                Text("キーボード追加・辞書補正・音声入力の案内です。")
                     .foregroundStyle(.secondary)
 
                 Group {
@@ -20,19 +22,43 @@ struct SetupGuideView: View {
 
                 Divider()
 
-                Text("マイルストーン2 の確認")
+                Text("辞書補正の確認")
                     .font(.headline)
-
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("1. キーボードの「候補」タブで「金子」を入力エリアに入れる")
-                    Text("2. 「辞書補正 ON」のまま「確定」を押す")
-                    Text("3. メモ欄に「金古」が入ること")
-                    Text("4. 「金子町」→「金古町」（長い一致が優先）")
-                    Text("5. ホスト辞書で誤認識を追加し、キーボード再表示後に反映されること")
+                    Text("候補「金子」→ 確定 → 金古")
+                    Text("「金子町」→ 金古町（長い一致優先）")
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+                Divider()
+
+                Text("音声入力の確認")
+                    .font(.headline)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("1. キーボードの大きな「🎤 音声入力」をタップ")
+                    Text("2. ホストが開き「話してください」→ 話す")
+                    Text("3. 「完了」をタップ")
+                    Text("4. メモ等に戻り、補正後の文字が入ることを確認")
+                    Text("例: 「かねこ」→ 金古（補正 ON 時）")
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+                if let onStartVoice {
+                    Button {
+                        onStartVoice()
+                    } label: {
+                        Text("音声入力を試す（ホストから）")
+                            .font(.title3.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 56)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+
+                Text("URL: \(AppGroupConstants.voiceURL.absoluteString)")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.tertiary)
                 Text("App Group: \(AppGroupConstants.suiteName)")
                     .font(.caption.monospaced())
                     .foregroundStyle(.tertiary)
