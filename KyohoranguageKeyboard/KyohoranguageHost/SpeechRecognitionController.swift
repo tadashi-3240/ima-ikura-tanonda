@@ -21,6 +21,7 @@ final class SpeechRecognitionController: ObservableObject {
 
     private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP"))
     private let audioEngine = AVAudioEngine()
+    private let dictionaryStore = DictionaryStore()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var sessionId = UUID()
@@ -176,6 +177,10 @@ final class SpeechRecognitionController: ObservableObject {
         } else {
             request.requiresOnDeviceRecognition = false
         }
+        // Bias Apple STT toward 協豊 dictionary terms (cannot retrain the model).
+        // CorrectionEngine remains the post-recognition safety net.
+        _ = dictionaryStore.seedInitialEntriesIfEmpty()
+        request.contextualStrings = dictionaryStore.contextualStrings()
         recognitionRequest = request
 
         let inputNode = audioEngine.inputNode

@@ -66,6 +66,34 @@ struct DictionaryStore {
         CorrectionEngine(entries: entries ?? loadEntries())
     }
 
+    /// Phrases for `SFSpeechRecognitionRequest.contextualStrings`.
+    /// Apple’s model cannot be retrained; this only biases recognition toward 協豊 terms.
+    /// Collects correct / reading / misrecognition strings, longer first (business compounds
+    /// before short name-like hits). Cap is a practical Apple limit (~100).
+    /// When categories exist later, prefer action/business words over person names; for now include all.
+    func contextualStrings(maxCount: Int = 100) -> [String] {
+        var seen = Set<String>()
+        var phrases: [String] = []
+
+        for entry in loadEntries() {
+            let candidates = [entry.correct, entry.reading] + entry.misrecognitions
+            for raw in candidates {
+                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty, !seen.contains(trimmed) else { continue }
+                seen.insert(trimmed)
+                phrases.append(trimmed)
+            }
+        }
+
+        phrases.sort { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count > rhs.count }
+            return lhs < rhs
+        }
+
+        guard phrases.count > maxCount else { return phrases }
+        return Array(phrases.prefix(maxCount))
+    }
+
     /// Official milestone-2 seed (exact product list).
     static let initialEntries: [DictionaryEntry] = [
         DictionaryEntry(
