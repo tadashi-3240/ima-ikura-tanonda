@@ -15,11 +15,11 @@ struct VoiceHomeView: View {
                     .font(.system(size: 36, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("いちばん確実な音声入力")
+                Text("メモに文字を入れるいちばん確実な方法")
                     .font(.title.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("下の大きな赤いボタンを押して話します。終わったら「完了」→ メモに戻ってください。")
+                Text("キーボードの🎤ではメモが開けないことがあります。ここで話して「完了してコピー」→ メモで長押しペーストしてください。")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,10 +78,10 @@ struct VoiceHomeView: View {
                     Text("かんたん5ステップ")
                         .font(.title2.weight(.bold))
                     Text("① この赤いボタンを押す")
-                    Text("② 「話してください」と出たら話す")
-                    Text("③ 「完了」を押す（補正後を確認）")
-                    Text("④ 「メモに戻る」→ メモ／LINE を開く")
-                    Text("⑤ 協豊キーボードを出す（入らなければ「結果を貼る」）")
+                    Text("② 話して「完了してコピー」")
+                    Text("③ 「コピーしました。メモで長押し→ペースト」を確認")
+                    Text("④ メモを開く")
+                    Text("⑤ 入力欄を長押し → ペースト")
                 }
                 .font(.title3)
                 .frame(maxWidth: .infinity, alignment: .leading)

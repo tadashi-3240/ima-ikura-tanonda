@@ -22,7 +22,7 @@ final class KeyboardViewController: UIInputViewController {
     /// Prevents double auto-insert of the same completed voice session.
     private var lastAutoInsertedSessionId: UUID?
 
-    private let hostVoiceHint = "協豊ランゲージアプリの「音声」から入力してください"
+    private let hostVoiceHint = "協豊ランゲージアプリの「音声」→完了してコピー→メモで長押しペースト（必須）"
 
     private let rootStack = UIStackView()
     private let compositionLabel = UILabel()
@@ -310,37 +310,27 @@ final class KeyboardViewController: UIInputViewController {
 
     private func flashMicPressed() {
         micButton.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.45)
-        micButton.setTitle("🎤 押されました…", for: .normal)
-        statusOverride = "マイク反応あり → アプリを開きます…"
+        micButton.setTitle("🎤 押されました", for: .normal)
+        statusOverride = hostVoiceHint
         refreshChrome()
     }
 
     private func startVoiceInput() {
         reloadDictionary()
-
-        // Always show a clear reaction first (even if Full Access is off).
-        statusOverride = "マイク反応あり → アプリを開きます…"
-        micButton.setTitle("🎤 起動中…", for: .normal)
-        micButton.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.35)
+        // Notes cannot reliably open host from keyboard — never sit in 音声待機中.
+        awaitingVoiceSessionId = nil
+        voiceLaunchDeadline = nil
+        statusOverride = hostVoiceHint
+        micButton.setTitle("🎤 アプリで話す", for: .normal)
+        micButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.22)
         refreshChrome()
-
-        // Host-first: if Full Access is off, don't pretend to wait.
-        guard hasFullAccess else {
-            failVoiceLaunch(
-                message: "フルアクセスがオフです。設定→キーボード→協豊ランゲージ→フルアクセスON。または協豊ランゲージアプリの「音声」赤いボタンへ"
-            )
-            return
-        }
-
-        let payload = VoiceBridge.beginRequest()
-        awaitingVoiceSessionId = payload.sessionId
-        // Give the host a moment to leave .requesting; then guide the user.
-        voiceLaunchDeadline = Date().addingTimeInterval(2.5)
-        statusOverride = "協豊ランゲージを開いています… 開かないときはアプリアイコン→「音声」"
-        refreshChrome()
-        startVoicePolling(interval: 0.15)
         aggressivePollUntil = Date().addingTimeInterval(12)
-        openHostVoiceURL()
+        startVoicePolling(interval: 0.12)
+
+        // Best-effort open only; UX does not depend on success.
+        if hasFullAccess {
+            openHostVoiceURL()
+        }
     }
 
     private func openHostVoiceURL() {
@@ -555,7 +545,7 @@ final class KeyboardViewController: UIInputViewController {
         VoiceBridge.markInserted()
         // Keep last result so 「結果を貼る」 still works if the field did not accept insert.
         composition = ""
-        statusOverride = "入りました: \(trimmed)（入っていなければ「結果を貼る」）"
+        statusOverride = "補正文を挿入しました（入っていなければ長押しでペースト）"
         refreshChrome()
     }
 

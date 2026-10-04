@@ -77,13 +77,13 @@ struct KyohoranguageHostApp: App {
     private func updateHintAfterVoice() {
         if let last = VoiceBridge.loadLastResult() {
             let shown = last.correctedText.isEmpty ? last.rawText : last.correctedText
-            lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが入れます。入らなければ「結果を貼る」。"
+            lastResultHint = "コピーしました。メモで長押し→ペースト\n「\(shown)」"
             return
         }
         let payload = VoiceBridge.load()
         if payload.status == .ready {
             let shown = payload.correctedText.isEmpty ? payload.rawText : payload.correctedText
-            lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが入れます。入らなければ「結果を貼る」。"
+            lastResultHint = "コピーしました。メモで長押し→ペースト\n「\(shown)」"
         }
     }
 }

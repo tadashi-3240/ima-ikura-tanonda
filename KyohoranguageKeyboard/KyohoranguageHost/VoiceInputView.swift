@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Full-screen voice UI — primary path for speech (host-first).
+/// Full-screen voice UI — Notes path is copy then long-press paste.
 struct VoiceInputView: View {
     let sessionId: UUID
     var onFinished: () -> Void
@@ -13,6 +13,7 @@ struct VoiceInputView: View {
     @State private var finishedText: String?
     @State private var errorMessage: String?
     @State private var isCompleting = false
+    @State private var copyFailed = false
 
     private var correctionEnabled: Bool {
         store.isCorrectionEnabled()
@@ -28,69 +29,42 @@ struct VoiceInputView: View {
                 .font(.system(size: 34, weight: .bold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            statusBanner
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("認識中")
-                    .font(.title2.weight(.semibold))
-                Text(displayPrimaryText)
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(displayPrimaryTextHasContent ? .primary : .secondary)
-                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                    .padding(16)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-
-                if correctionEnabled, displayPrimaryTextHasContent {
-                    Text("補正後プレビュー")
-                        .font(.title3.weight(.semibold))
-                    Text(displayCorrectedText)
-                        .font(.system(size: 26, weight: .semibold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
-                        .background(Color.green.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
-                }
-            }
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.orange)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if let finishedMessage {
-                Text(finishedMessage)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.blue)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
+            if finishedText != nil {
+                pasteSuccessPanel
+            } else {
+                listeningPanel
             }
 
             Spacer(minLength: 8)
 
             if finishedText != nil {
                 Button {
+                    if let finishedText {
+                        _ = ClipboardCopy.copyPlainText(finishedText)
+                        VoiceBridge.saveClipboardText(finishedText)
+                    }
                     onFinished()
                 } label: {
-                    Text("メモに戻る")
-                        .font(.system(size: 32, weight: .bold))
-                        .frame(maxWidth: .infinity, minHeight: 80)
+                    Text("メモに戻って長押し→ペースト")
+                        .font(.system(size: 24, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, minHeight: 84)
                 }
                 .buttonStyle(.borderedProminent)
 
-                Text("協豊キーボードを出したまま戻ると、文字が入ります。入らなければ長押し→ペースト。")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                Button("もう一度コピー") {
+                    guard let finishedText else { return }
+                    copyFailed = !ClipboardCopy.copyPlainText(finishedText)
+                    VoiceBridge.saveClipboardText(finishedText)
+                }
+                .font(.title2.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 52)
             } else {
                 Button {
-                    Task { await complete() }
+                    Task { await completeAndCopy() }
                 } label: {
-                    Text(isCompleting ? "処理中…" : "完了")
-                        .font(.system(size: 32, weight: .bold))
+                    Text(isCompleting ? "処理中…" : "完了してコピー")
+                        .font(.system(size: 30, weight: .bold))
                         .frame(maxWidth: .infinity, minHeight: 80)
                 }
                 .buttonStyle(.borderedProminent)
@@ -120,69 +94,114 @@ struct VoiceInputView: View {
         .onAppear { Task { await autoStartIfNeeded() } }
     }
 
-    private var displayPrimaryText: String {
-        if let finishedText, !finishedText.isEmpty {
-            // Show raw when finished if available from bridge.
-            let payload = VoiceBridge.load()
-            if !payload.rawText.isEmpty { return payload.rawText }
-            return finishedText
+    private var listeningPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            statusBanner
+
+            Text("いまの言葉")
+                .font(.title2.weight(.semibold))
+            Text(speech.displayText.isEmpty ? "（まだ聞こえていません）" : speech.displayText)
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(speech.displayText.isEmpty ? .secondary : .primary)
+                .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+                .padding(16)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+
+            if correctionEnabled, !speech.displayText.isEmpty {
+                Text("辞書補正後（これをコピーします）")
+                    .font(.title3.weight(.semibold))
+                Text(correctedPreview)
+                    .font(.system(size: 26, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.green.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
         }
-        return speech.displayText.isEmpty ? "（まだ聞こえていません）" : speech.displayText
     }
 
-    private var displayPrimaryTextHasContent: Bool {
-        if finishedText != nil { return true }
-        return !speech.displayText.isEmpty
-    }
+    private var pasteSuccessPanel: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("コピーしました。メモで長押し→ペースト")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(.green)
+                .fixedSize(horizontal: false, vertical: true)
 
-    private var displayCorrectedText: String {
-        if let finishedText, !finishedText.isEmpty {
-            return finishedText
+            if let finishedText {
+                Text(finishedText)
+                    .font(.system(size: 30, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.green.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("これだけやってください")
+                    .font(.title2.weight(.bold))
+                Text("1. 下の青いボタンを押す")
+                Text("2. メモを開く")
+                Text("3. 入力欄を長押し → ペースト")
+            }
+            .font(.title3)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+
+            if copyFailed {
+                Text("コピーに失敗したかもしれません。「もう一度コピー」を押してください。")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
+
+            if let finishedMessage {
+                Text(finishedMessage)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
         }
-        return correctedPreview
     }
 
     private func autoStartIfNeeded() async {
         guard !didAutoStart else { return }
         didAutoStart = true
         _ = store.seedInitialEntriesIfEmpty()
-        // Small yield so the cover animation finishes before the mic permission sheet.
         try? await Task.sleep(nanoseconds: 200_000_000)
         await speech.prepareAndStart(sessionId: sessionId)
     }
 
     @ViewBuilder
     private var statusBanner: some View {
-        if finishedText != nil {
-            Label("できました", systemImage: "checkmark.circle.fill")
+        switch speech.phase {
+        case .listening:
+            Label("話してください", systemImage: "mic.fill")
                 .font(.system(size: 32, weight: .bold))
-                .foregroundStyle(.green)
-        } else {
-            switch speech.phase {
-            case .listening:
-                Label("話してください", systemImage: "mic.fill")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.red)
-            case .requestingPermission:
-                Text("マイクと音声認識の許可を確認しています…")
-                    .font(.title3)
-            case .finishing:
-                Text("文字にしています…")
-                    .font(.title3)
-            case .unavailable(let message):
-                Text(message)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.orange)
-            case .idle:
-                if finishedMessage == nil, errorMessage == nil {
-                    Text("準備中…")
-                        .font(.title3)
-                }
-            }
+                .foregroundStyle(.red)
+        case .requestingPermission:
+            Text("マイクと音声認識の許可を確認しています…")
+                .font(.title3)
+        case .finishing:
+            Text("文字にしています…")
+                .font(.title3)
+        case .unavailable(let message):
+            Text(message)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.orange)
+        case .idle:
+            Text("準備中…")
+                .font(.title3)
         }
     }
 
-    private func complete() async {
+    private func completeAndCopy() async {
         isCompleting = true
         defer { isCompleting = false }
 
@@ -194,22 +213,29 @@ struct VoiceInputView: View {
             finishedMessage = nil
             finishedText = nil
             VoiceBridge.markError(sessionId: sessionId, message: hint)
-            // Restart listening so user can try again without leaving.
             await speech.retryListening()
             return
         }
 
         let engine = store.makeEngine()
         let corrected = engine.correct(raw, enabled: store.isCorrectionEnabled())
+        let forPaste = store.isCorrectionEnabled() ? corrected : raw
+
         VoiceBridge.markReady(sessionId: sessionId, rawText: raw, correctedText: corrected)
 
-        // Clipboard backup (public API) if keyboard insert is delayed.
-        let forPaste = store.isCorrectionEnabled() ? corrected : raw
-        UIPasteboard.general.string = forPaste
+        var ok = ClipboardCopy.copyPlainText(forPaste)
+        VoiceBridge.saveClipboardText(forPaste)
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        if ClipboardCopy.copyPlainText(forPaste) {
+            ok = true
+        }
         VoiceBridge.saveClipboardText(forPaste)
 
-        errorMessage = nil
         finishedText = forPaste
-        finishedMessage = "コピーしました。\nメモに戻ると、協豊キーボードが文字を入れます。"
+        copyFailed = !ok
+        errorMessage = nil
+        finishedMessage = ok
+            ? "クリップボードに保存済みです。"
+            : "コピー確認に失敗しました。もう一度コピーを押してください。"
     }
 }
