@@ -2,14 +2,13 @@ import SwiftUI
 
 struct ContentView: View {
     var onStartVoice: (() -> Void)?
+    var lastResultHint: String? = nil
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
 
     var body: some View {
         TabView {
             NavigationStack {
-                VoiceHomeView {
-                    onStartVoice?()
-                }
+                VoiceHomeView(onStartVoice: { onStartVoice?() }, lastResultHint: lastResultHint)
             }
             .tabItem {
                 Label("音声", systemImage: "mic.fill")

@@ -1,54 +1,66 @@
 import SwiftUI
 
-/// Home screen entry: large voice button for manual flow when keyboard cannot open the host.
+/// Primary voice entry — host-first reliable path for non-technical users.
 struct VoiceHomeView: View {
     var onStartVoice: () -> Void
+    var lastResultHint: String?
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 28) {
                 Text("協豊ランゲージ")
-                    .font(.largeTitle.bold())
+                    .font(.system(size: 36, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("キーボードから開けないときは、ここから音声入力できます。")
+                Text("いちばん確実な音声入力")
+                    .font(.title.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("下の大きなボタンを押して話します。終わったら「完了」→ メモに戻ってください。")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button(action: onStartVoice) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 14) {
                         Text("🎤")
-                            .font(.system(size: 56))
+                            .font(.system(size: 72))
                         Text("音声入力")
-                            .font(.system(size: 32, weight: .bold))
-                        Text("タップして話す")
-                            .font(.title3)
+                            .font(.system(size: 40, weight: .bold))
+                        Text("ここを押して話す")
+                            .font(.title2.weight(.semibold))
                     }
                     .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .frame(maxWidth: .infinity, minHeight: 220)
                     .background(Color.red.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("使い方")
-                        .font(.headline)
-                    Text("1. このボタン（またはキーボードの🎤）で開始")
-                    Text("2. 「話してください」と出たら話す")
-                    Text("3. 「完了」を押す")
-                    Text("4. メモ / LINE など、入力していたアプリに戻る")
-                    Text("5. 協豊キーボードが表示されていれば、文字が入ります")
+                if let lastResultHint, !lastResultHint.isEmpty {
+                    Text(lastResultHint)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.blue)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("かんたん5ステップ")
+                        .font(.title2.weight(.bold))
+                    Text("① このボタンを押す")
+                    Text("② 「話してください」と出たら話す")
+                    Text("③ 「完了」を押す")
+                    Text("④ メモ（や LINE）に戻る")
+                    Text("⑤ 協豊キーボードを出しておく")
                 }
                 .font(.title3)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
+                .padding(18)
                 .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
 
-                Text("※ キーボードから直接開くには「フルアクセスを許可」が必要です。")
-                    .font(.subheadline)
+                Text("キーボードの🎤が動かないときは、必ずこの画面から入力してください。")
+                    .font(.body)
                     .foregroundStyle(.secondary)
             }
             .padding(20)

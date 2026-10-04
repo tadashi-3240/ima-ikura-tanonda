@@ -7,37 +7,45 @@ private struct VoiceSessionRoute: Identifiable {
 @main
 struct KyohoranguageHostApp: App {
     @State private var voiceRoute: VoiceSessionRoute?
+    @State private var lastResultHint: String?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            ContentView(onStartVoice: startVoiceFromHost)
-                .fullScreenCover(item: $voiceRoute) { route in
-                    VoiceInputView(sessionId: route.id) {
-                        voiceRoute = nil
+            ContentView(
+                onStartVoice: startVoiceFromHost,
+                lastResultHint: lastResultHint
+            )
+            .fullScreenCover(item: $voiceRoute) { route in
+                VoiceInputView(sessionId: route.id) {
+                    let payload = VoiceBridge.load()
+                    if payload.status == .ready {
+                        let shown = payload.correctedText.isEmpty ? payload.rawText : payload.correctedText
+                        lastResultHint = "直前の結果: \(shown)\nメモに戻るとキーボードが文字を入れます。"
                     }
+                    voiceRoute = nil
                 }
-                .onOpenURL { url in
-                    handleOpenURL(url)
+            }
+            .onOpenURL { url in
+                handleOpenURL(url)
+            }
+            .onChange(of: scenePhase) { newPhase in
+                if newPhase == .active {
+                    adoptPendingKeyboardRequestIfNeeded()
                 }
-                .onChange(of: scenePhase) { newPhase in
-                    // If launched cold via URL before SwiftUI attached, retry pending request.
-                    if newPhase == .active {
-                        adoptPendingKeyboardRequestIfNeeded()
-                    }
-                }
+            }
         }
     }
 
     private func startVoiceFromHost() {
+        lastResultHint = nil
         let payload = VoiceBridge.beginRequest()
         voiceRoute = VoiceSessionRoute(id: payload.sessionId)
     }
 
     private func handleOpenURL(_ url: URL) {
         guard url.scheme == AppGroupConstants.urlScheme else { return }
-        let absolute = url.absoluteString.lowercased()
-        guard absolute.contains("voice") else { return }
+        guard url.absoluteString.lowercased().contains("voice") else { return }
 
         let existing = VoiceBridge.load()
         let sessionId: UUID
@@ -49,7 +57,6 @@ struct KyohoranguageHostApp: App {
         voiceRoute = VoiceSessionRoute(id: sessionId)
     }
 
-    /// When user opens the host manually after tapping mic, pick up the keyboard's requesting session.
     private func adoptPendingKeyboardRequestIfNeeded() {
         guard voiceRoute == nil else { return }
         let payload = VoiceBridge.load()

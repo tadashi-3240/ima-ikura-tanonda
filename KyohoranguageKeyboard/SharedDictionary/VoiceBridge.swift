@@ -14,19 +14,21 @@ struct VoicePayload: Codable, Equatable {
     var status: VoiceSessionStatus
     var sessionId: UUID
     var rawText: String
+    /// Pre-corrected text from host (keyboard may re-apply based on current toggle).
+    var correctedText: String
     var errorMessage: String?
     var updatedAt: Date
-    /// When the keyboard (or host) started this session — used for timeouts.
     var requestedAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case status, sessionId, rawText, errorMessage, updatedAt, requestedAt
+        case status, sessionId, rawText, correctedText, errorMessage, updatedAt, requestedAt
     }
 
     init(
         status: VoiceSessionStatus,
         sessionId: UUID,
         rawText: String,
+        correctedText: String = "",
         errorMessage: String?,
         updatedAt: Date,
         requestedAt: Date
@@ -34,6 +36,7 @@ struct VoicePayload: Codable, Equatable {
         self.status = status
         self.sessionId = sessionId
         self.rawText = rawText
+        self.correctedText = correctedText
         self.errorMessage = errorMessage
         self.updatedAt = updatedAt
         self.requestedAt = requestedAt
@@ -44,6 +47,7 @@ struct VoicePayload: Codable, Equatable {
         status = try container.decode(VoiceSessionStatus.self, forKey: .status)
         sessionId = try container.decode(UUID.self, forKey: .sessionId)
         rawText = try container.decodeIfPresent(String.self, forKey: .rawText) ?? ""
+        correctedText = try container.decodeIfPresent(String.self, forKey: .correctedText) ?? ""
         errorMessage = try container.decodeIfPresent(String.self, forKey: .errorMessage)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
         requestedAt = try container.decodeIfPresent(Date.self, forKey: .requestedAt) ?? updatedAt
@@ -55,6 +59,7 @@ struct VoicePayload: Codable, Equatable {
             status: .idle,
             sessionId: UUID(),
             rawText: "",
+            correctedText: "",
             errorMessage: nil,
             updatedAt: now,
             requestedAt: now
@@ -64,11 +69,20 @@ struct VoicePayload: Codable, Equatable {
     var age: TimeInterval {
         Date().timeIntervalSince(requestedAt)
     }
+
+    /// Text the keyboard should prefer inserting.
+    func textForInsert(correctionEnabled: Bool, engine: CorrectionEngine) -> String {
+        if correctionEnabled {
+            if !correctedText.isEmpty { return correctedText }
+            return engine.correct(rawText, enabled: true)
+        }
+        return rawText
+    }
 }
 
 enum VoiceBridge {
-    /// Give up waiting for host open / completion after this many seconds.
-    static let sessionTimeout: TimeInterval = 45
+    /// Abandon abandoned sessions (host never completed).
+    static let sessionTimeout: TimeInterval = 40
 
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -107,6 +121,7 @@ enum VoiceBridge {
             status: .requesting,
             sessionId: UUID(),
             rawText: "",
+            correctedText: "",
             errorMessage: nil,
             updatedAt: now,
             requestedAt: now
@@ -124,11 +139,12 @@ enum VoiceBridge {
         _ = save(payload)
     }
 
-    static func markReady(sessionId: UUID, rawText: String) {
+    static func markReady(sessionId: UUID, rawText: String, correctedText: String) {
         var payload = load()
         payload.status = .ready
         payload.sessionId = sessionId
         payload.rawText = rawText
+        payload.correctedText = correctedText
         payload.errorMessage = nil
         payload.updatedAt = Date()
         _ = save(payload)
@@ -155,7 +171,6 @@ enum VoiceBridge {
         _ = save(.idle())
     }
 
-    /// True when a session has been waiting too long without a ready result.
     static func isTimedOut(_ payload: VoicePayload) -> Bool {
         switch payload.status {
         case .requesting, .listening:

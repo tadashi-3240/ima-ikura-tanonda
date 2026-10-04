@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Speech
+import UIKit
 
 /// Host-only speech recognition using public Speech + AVFoundation APIs.
 @MainActor
@@ -16,12 +17,14 @@ final class SpeechRecognitionController: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var transcript: String = ""
     @Published private(set) var partialTranscript: String = ""
+    @Published private(set) var lastErrorHint: String?
 
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP"))
+    private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP"))
     private let audioEngine = AVAudioEngine()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var sessionId = UUID()
+    private var preferOnDevice = false
 
     var displayText: String {
         let live = partialTranscript.isEmpty ? transcript : partialTranscript
@@ -32,41 +35,60 @@ final class SpeechRecognitionController: ObservableObject {
         self.sessionId = sessionId
         transcript = ""
         partialTranscript = ""
+        lastErrorHint = nil
+        preferOnDevice = false
         phase = .requestingPermission
 
-        let micOK = await requestMicrophonePermission()
-        guard micOK else {
-            phase = .unavailable("マイクの許可が必要です。設定でマイクをオンにしてください。")
-            VoiceBridge.markError(sessionId: sessionId, message: "microphone denied")
-            return
-        }
+        guard await ensureMicrophonePermission() else { return }
+        guard await ensureSpeechPermission() else { return }
 
-        let speechOK = await requestSpeechPermission()
-        guard speechOK else {
-            phase = .unavailable("音声認識の許可が必要です。設定で音声認識をオンにしてください。")
-            VoiceBridge.markError(sessionId: sessionId, message: "speech denied")
-            return
+        if speechRecognizer == nil {
+            speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP"))
         }
-
-        guard let speechRecognizer, speechRecognizer.isAvailable else {
-            phase = .unavailable("この端末では日本語の音声認識を利用できません。")
-            VoiceBridge.markError(sessionId: sessionId, message: "recognizer unavailable")
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
+            failUnavailable("日本語の音声認識を利用できません。ネットワーク接続を確認するか、しばらくしてからもう一度話してください。")
             return
         }
 
         do {
-            try startEngine(recognizer: speechRecognizer)
+            try startEngine(recognizer: recognizer, onDevice: false)
             phase = .listening
             VoiceBridge.markListening(sessionId: sessionId)
         } catch {
-            phase = .unavailable("音声の開始に失敗しました: \(error.localizedDescription)")
-            VoiceBridge.markError(sessionId: sessionId, message: error.localizedDescription)
+            // Public API fallback: try on-device recognition when available.
+            if recognizer.supportsOnDeviceRecognition {
+                do {
+                    preferOnDevice = true
+                    try startEngine(recognizer: recognizer, onDevice: true)
+                    phase = .listening
+                    VoiceBridge.markListening(sessionId: sessionId)
+                    return
+                } catch {
+                    failUnavailable("音声の開始に失敗しました。マイクが他のアプリで使われていないか確認してください。")
+                    return
+                }
+            }
+            failUnavailable("音声の開始に失敗しました。もう一度お試しください。")
         }
     }
 
-    func finish() -> String {
+    /// Ends audio and briefly waits for a final transcript (public Speech API).
+    func finish() async -> String {
         phase = .finishing
-        let text = displayText
+        recognitionRequest?.endAudio()
+        recognitionTask?.finish()
+
+        let deadline = Date().addingTimeInterval(1.25)
+        while Date() < deadline {
+            if !displayText.isEmpty {
+                // Allow a short moment for isFinal to arrive.
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                break
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+
+        let text = displayText.trimmingCharacters(in: .whitespacesAndNewlines)
         stopEngine()
         transcript = text
         partialTranscript = ""
@@ -82,38 +104,88 @@ final class SpeechRecognitionController: ObservableObject {
         VoiceBridge.markCancelled(sessionId: sessionId)
     }
 
-    private func requestMicrophonePermission() async -> Bool {
-        await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                continuation.resume(returning: granted)
+    func retryListening() async {
+        await prepareAndStart(sessionId: sessionId)
+    }
+
+    // MARK: - Permissions
+
+    private func ensureMicrophonePermission() async -> Bool {
+        let session = AVAudioSession.sharedInstance()
+        switch session.recordPermission {
+        case .granted:
+            return true
+        case .denied:
+            failUnavailable("マイクの許可がオフです。iPhoneの「設定」→「協豊ランゲージ」→「マイク」をオンにしてください。")
+            return false
+        case .undetermined:
+            let granted = await withCheckedContinuation { continuation in
+                session.requestRecordPermission { continuation.resume(returning: $0) }
             }
+            if !granted {
+                failUnavailable("マイクの許可が必要です。設定でマイクをオンにして、もう一度話してください。")
+            }
+            return granted
+        @unknown default:
+            failUnavailable("マイクの状態を確認できません。設定でマイクをオンにしてください。")
+            return false
         }
     }
 
-    private func requestSpeechPermission() async -> Bool {
-        await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status == .authorized)
+    private func ensureSpeechPermission() async -> Bool {
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized:
+            return true
+        case .denied, .restricted:
+            failUnavailable("音声認識の許可がオフです。iPhoneの「設定」→「協豊ランゲージ」→「音声認識」をオンにしてください。")
+            return false
+        case .notDetermined:
+            let status = await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
             }
+            if status != .authorized {
+                failUnavailable("音声認識の許可が必要です。設定で音声認識をオンにして、もう一度話してください。")
+                return false
+            }
+            return true
+        @unknown default:
+            failUnavailable("音声認識の状態を確認できません。設定を確認してください。")
+            return false
         }
     }
 
-    private func startEngine(recognizer: SFSpeechRecognizer) throws {
+    private func failUnavailable(_ message: String) {
+        phase = .unavailable(message)
+        lastErrorHint = message
+        VoiceBridge.markError(sessionId: sessionId, message: message)
+    }
+
+    // MARK: - Engine
+
+    private func startEngine(recognizer: SFSpeechRecognizer, onDevice: Bool) throws {
         stopEngine()
 
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        if recognizer.supportsOnDeviceRecognition {
+        if onDevice, recognizer.supportsOnDeviceRecognition {
+            request.requiresOnDeviceRecognition = true
+        } else {
             request.requiresOnDeviceRecognition = false
         }
         recognitionRequest = request
 
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            throw NSError(domain: "KyohoranguageSpeech", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "マイク入力の形式を取得できませんでした"
+            ])
+        }
+
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
@@ -131,8 +203,11 @@ final class SpeechRecognitionController: ObservableObject {
                         self.partialTranscript = text
                     }
                 }
-                if error != nil {
-                    // Keep whatever text we already have; user can still tap 完了.
+                if let error {
+                    if self.displayText.isEmpty {
+                        self.lastErrorHint = "うまく聞き取れませんでした。もう一度話してください。"
+                    }
+                    _ = error
                     self.stopEngineKeepingText()
                 }
             }
@@ -148,7 +223,7 @@ final class SpeechRecognitionController: ObservableObject {
             audioEngine.stop()
         }
         audioEngine.inputNode.removeTap(onBus: 0)
-        recognitionTask?.cancel()
+        recognitionTask?.finish()
         recognitionRequest = nil
         recognitionTask = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

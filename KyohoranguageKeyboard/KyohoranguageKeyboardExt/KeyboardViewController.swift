@@ -16,7 +16,11 @@ final class KeyboardViewController: UIInputViewController {
     private var awaitingVoiceSessionId: UUID?
     private var voicePollTimer: Timer?
     private var voiceLaunchDeadline: Date?
+    private var voiceBecameActiveAt: Date?
+    private var aggressivePollUntil: Date?
     private var statusOverride: String?
+
+    private let hostVoiceHint = "協豊ランゲージアプリの「音声」から入力してください"
 
     private let rootStack = UIStackView()
     private let compositionLabel = UILabel()
@@ -38,10 +42,11 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         reloadDictionary()
+        voiceBecameActiveAt = Date()
+        aggressivePollUntil = Date().addingTimeInterval(8)
         refreshChrome()
-        // Always check App Group — user may have finished voice from the host home button.
         tryConsumeVoiceResult()
-        startVoicePolling()
+        startVoicePolling(interval: 0.15)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -285,24 +290,23 @@ final class KeyboardViewController: UIInputViewController {
         reloadDictionary()
         statusOverride = nil
 
+        // Host-first: if Full Access is off, don't pretend to wait.
         guard hasFullAccess else {
-            failVoiceLaunch(
-                message: "フルアクセスがオフです。設定→キーボード→協豊ランゲージ→フルアクセスを許可。または本体アプリの「音声」から入力してください。"
-            )
+            failVoiceLaunch(message: hostVoiceHint + "（フルアクセスもオンにしてください）")
             return
         }
 
         let payload = VoiceBridge.beginRequest()
         awaitingVoiceSessionId = payload.sessionId
-        voiceLaunchDeadline = Date().addingTimeInterval(2.5)
-        statusOverride = "本体アプリを開いています…"
+        // Fail fast if host never starts listening.
+        voiceLaunchDeadline = Date().addingTimeInterval(1.5)
+        statusOverride = "アプリを開いています… 開かないときは「協豊ランゲージ」アプリの「音声」へ"
         refreshChrome()
-        startVoicePolling()
+        startVoicePolling(interval: 0.15)
+        aggressivePollUntil = Date().addingTimeInterval(8)
         openHostVoiceURL()
     }
 
-    /// Prefer UIApplication.open (with completion) via responder chain; fall back to extensionContext.open.
-    /// Both require Full Access on current iOS. Failures must surface a clear keyboard message.
     private func openHostVoiceURL() {
         let url = AppGroupConstants.voiceURL
 
@@ -311,9 +315,7 @@ final class KeyboardViewController: UIInputViewController {
         }
 
         guard let context = extensionContext else {
-            failVoiceLaunch(
-                message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
-            )
+            failVoiceLaunch(message: hostVoiceHint)
             return
         }
 
@@ -321,9 +323,7 @@ final class KeyboardViewController: UIInputViewController {
             DispatchQueue.main.async {
                 guard let self else { return }
                 if !success {
-                    self.failVoiceLaunch(
-                        message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
-                    )
+                    self.failVoiceLaunch(message: self.hostVoiceHint)
                 }
             }
         }
@@ -338,12 +338,10 @@ final class KeyboardViewController: UIInputViewController {
                     DispatchQueue.main.async {
                         guard let self else { return }
                         if success {
-                            self.statusOverride = "音声入力中… 本体で「完了」を押し、このアプリに戻ってください"
+                            self.statusOverride = "アプリで話して「完了」→ ここに戻ると文字が入ります"
                             self.refreshChrome()
                         } else {
-                            self.failVoiceLaunch(
-                                message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
-                            )
+                            self.failVoiceLaunch(message: self.hostVoiceHint)
                         }
                     }
                 }
@@ -357,9 +355,10 @@ final class KeyboardViewController: UIInputViewController {
     private func failVoiceLaunch(message: String) {
         awaitingVoiceSessionId = nil
         voiceLaunchDeadline = nil
-        stopVoicePolling()
         VoiceBridge.clear()
         statusOverride = message
+        // Keep light polling so host-completed results still insert.
+        startVoicePolling(interval: 0.25)
         refreshChrome()
     }
 
@@ -371,9 +370,9 @@ final class KeyboardViewController: UIInputViewController {
         refreshChrome()
     }
 
-    private func startVoicePolling() {
+    private func startVoicePolling(interval: TimeInterval) {
         stopVoicePolling()
-        voicePollTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+        voicePollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.tryConsumeVoiceResult()
         }
         if let voicePollTimer {
@@ -387,22 +386,37 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func tryConsumeVoiceResult() {
+        // After aggressive window, slow down polling a bit.
+        if let until = aggressivePollUntil, Date() > until {
+            aggressivePollUntil = nil
+            startVoicePolling(interval: 0.3)
+        }
+
         let payload = VoiceBridge.load()
 
-        // Stuck waiting (host never opened / user abandoned) — clear after timeout.
         if VoiceBridge.isTimedOut(payload) {
-            clearVoiceWait(message: "音声入力がタイムアウトしました。本体アプリの「音声」タブからもう一度試してください。")
+            clearVoiceWait(message: hostVoiceHint)
             return
         }
 
-        // Host never reached listening shortly after launch attempt.
+        // Host never opened / never reached listening.
         if let deadline = voiceLaunchDeadline,
            Date() > deadline,
            awaitingVoiceSessionId != nil,
            payload.status == .requesting {
-            failVoiceLaunch(
-                message: "本体アプリを開けません。協豊ランゲージを開いて「音声入力」を使ってください。"
-            )
+            failVoiceLaunch(message: hostVoiceHint)
+            return
+        }
+
+        // User returned to keyboard while still waiting — clear standby quickly if no progress.
+        if let awaiting = awaitingVoiceSessionId,
+           let appeared = voiceBecameActiveAt,
+           Date().timeIntervalSince(appeared) > 4,
+           payload.sessionId == awaiting,
+           (payload.status == .requesting || payload.status == .listening) {
+            // Still listening is OK if host is open; but if user is back on keyboard, host is backgrounded.
+            // Clear stuck standby and point to host app.
+            clearVoiceWait(message: hostVoiceHint)
             return
         }
 
@@ -411,49 +425,59 @@ final class KeyboardViewController: UIInputViewController {
             switch payload.status {
             case .listening:
                 voiceLaunchDeadline = nil
-                statusOverride = "音声入力中… 本体で「完了」を押し、このアプリに戻ってください"
+                statusOverride = "アプリで「完了」を押してから、ここに戻ってください"
                 refreshChrome()
                 return
             case .requesting:
-                statusOverride = statusOverride ?? "本体アプリを開いています…"
                 refreshChrome()
                 return
             default:
                 break
             }
         } else if payload.status == .listening || payload.status == .requesting {
-            // Host-started session (manual home button) while keyboard is visible.
-            awaitingVoiceSessionId = payload.sessionId
-            statusOverride = "音声入力中… 本体で「完了」を押し、このアプリに戻ってください"
-            refreshChrome()
-            return
+            // Don't latch keyboard into long standby for host-started sessions while typing.
+            // Just wait for ready without sticky "待機中" mic label unless we started it.
+            if awaitingVoiceSessionId == nil {
+                // Opportunistically consume when ready only; ignore listening noise.
+            }
         }
 
         guard payload.status == .ready else {
             if payload.status == .error {
-                clearVoiceWait(message: "音声エラー: \(payload.errorMessage ?? "不明")。本体アプリの「音声」から再試行してください。")
+                let msg = payload.errorMessage?.isEmpty == false
+                    ? payload.errorMessage!
+                    : hostVoiceHint
+                clearVoiceWait(message: msg)
             } else if payload.status == .cancelled {
                 clearVoiceWait(message: nil)
             }
             return
         }
 
+        insertReadyPayload(payload)
+    }
+
+    private func insertReadyPayload(_ payload: VoicePayload) {
         let raw = payload.rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty else {
-            clearVoiceWait(message: "音声結果が空でした。もう一度試してください。")
+        guard !raw.isEmpty || !payload.correctedText.isEmpty else {
+            clearVoiceWait(message: "言葉を認識できませんでした。アプリの「音声」でもう一度話してください。")
             return
         }
 
         reloadDictionary()
-        let text = engine.correct(raw, enabled: correctionEnabled)
+        let text = payload.textForInsert(correctionEnabled: correctionEnabled, engine: engine)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            clearVoiceWait(message: "言葉を認識できませんでした。アプリの「音声」でもう一度話してください。")
+            return
+        }
+
         textDocumentProxy.insertText(text)
         awaitingVoiceSessionId = nil
         voiceLaunchDeadline = nil
         VoiceBridge.clear()
         composition = ""
-        statusOverride = correctionEnabled && text != raw
-            ? "音声を挿入しました: \(text)（元: \(raw)）"
-            : "音声を挿入しました: \(text)"
+        statusOverride = "入りました: \(text)"
         refreshChrome()
     }
 
@@ -538,9 +562,9 @@ final class KeyboardViewController: UIInputViewController {
         correctionButton.setTitleColor(on ? .systemGreen : .label, for: .normal)
 
         if awaitingVoiceSessionId != nil {
-            micButton.setTitle("🎤 音声待機中…", for: .normal)
+            micButton.setTitle("🎤 待機中…", for: .normal)
         } else {
-            micButton.setTitle("🎤 音声入力", for: .normal)
+            micButton.setTitle("🎤 アプリで音声", for: .normal)
         }
     }
 
