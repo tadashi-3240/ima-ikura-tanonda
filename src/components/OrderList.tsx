@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
+import { groupByCategory } from '../lib/category'
 import { formatYen, lineSubtotal } from '../lib/money'
 import type { NewOrder, Order } from '../types/order'
 import { ManualForm } from './ManualForm'
@@ -14,6 +15,7 @@ type Props = {
 export function OrderList({ orders, onQuantity, onUpdate, onRemove }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const editing = orders.find((order) => order.id === editingId) ?? null
+  const groups = groupByCategory(orders)
 
   if (orders.length === 0) {
     return (
@@ -37,64 +39,80 @@ export function OrderList({ orders, onQuantity, onUpdate, onRemove }: Props) {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
-              <tr key={order.id} className="border-b border-line/70">
-                <td className="py-3 font-semibold">{order.name}</td>
-                <td className="py-3 text-right tabular-nums">{formatYen(order.unitPrice)}</td>
-                <td className="py-3">
-                  <div className="flex justify-end">
-                    <QuantityStepper
-                      value={order.quantity}
-                      onChange={(quantity) => onQuantity(order.id, quantity)}
-                    />
-                  </div>
-                </td>
-                <td className="py-3 text-right font-bold tabular-nums text-gold">
-                  {formatYen(lineSubtotal(order.unitPrice, order.quantity))}
-                </td>
-                <td className="py-3 pl-3 text-right">
-                  <button
-                    type="button"
-                    className="text-sm text-muted underline"
-                    onClick={() => setEditingId(order.id)}
-                  >
-                    編集
-                  </button>
-                </td>
-              </tr>
+            {groups.map((group) => (
+              <Fragment key={group.category}>
+                <tr>
+                  <td colSpan={5} className="pt-5 pb-1 text-sm font-semibold text-muted">
+                    {group.category}
+                  </td>
+                </tr>
+                {group.items.map((order) => (
+                  <tr key={order.id} className="border-b border-line/70">
+                    <td className="py-3 font-semibold">{order.name}</td>
+                    <td className="py-3 text-right tabular-nums">{formatYen(order.unitPrice)}</td>
+                    <td className="py-3">
+                      <div className="flex justify-end">
+                        <QuantityStepper
+                          value={order.quantity}
+                          onChange={(quantity) => onQuantity(order.id, quantity)}
+                        />
+                      </div>
+                    </td>
+                    <td className="py-3 text-right font-bold tabular-nums text-gold">
+                      {formatYen(lineSubtotal(order.unitPrice, order.quantity))}
+                    </td>
+                    <td className="py-3 pl-3 text-right">
+                      <button
+                        type="button"
+                        className="text-sm text-muted underline"
+                        onClick={() => setEditingId(order.id)}
+                      >
+                        編集
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>
       </div>
 
-      <ul className="space-y-3 px-4 md:hidden">
-        {orders.map((order) => (
-          <li key={order.id} className="rounded-2xl border border-line bg-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-lg font-bold leading-tight">{order.name}</p>
-              <button
-                type="button"
-                className="shrink-0 text-sm text-muted underline"
-                onClick={() => setEditingId(order.id)}
-              >
-                編集
-              </button>
-            </div>
-            <p className="mt-1 text-muted tabular-nums">
-              {formatYen(order.unitPrice)} × {order.quantity}
-            </p>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-2xl font-bold text-gold tabular-nums">
-                {formatYen(lineSubtotal(order.unitPrice, order.quantity))}
-              </p>
-              <QuantityStepper
-                value={order.quantity}
-                onChange={(quantity) => onQuantity(order.id, quantity)}
-              />
-            </div>
-          </li>
+      <div className="space-y-6 px-4 md:hidden">
+        {groups.map((group) => (
+          <section key={group.category}>
+            <h2 className="mb-2 text-sm font-semibold text-muted">{group.category}</h2>
+            <ul className="space-y-3">
+              {group.items.map((order) => (
+                <li key={order.id} className="rounded-2xl border border-line bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-lg font-bold leading-tight">{order.name}</p>
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm text-muted underline"
+                      onClick={() => setEditingId(order.id)}
+                    >
+                      編集
+                    </button>
+                  </div>
+                  <p className="mt-1 text-muted tabular-nums">
+                    {formatYen(order.unitPrice)} × {order.quantity}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <p className="text-2xl font-bold text-gold tabular-nums">
+                      {formatYen(lineSubtotal(order.unitPrice, order.quantity))}
+                    </p>
+                    <QuantityStepper
+                      value={order.quantity}
+                      onChange={(quantity) => onQuantity(order.id, quantity)}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         ))}
-      </ul>
+      </div>
 
       {editing && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-4 sm:items-center">

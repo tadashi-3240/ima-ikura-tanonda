@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { groupByCategory } from '../lib/category'
 import { formatYen, grandTotal, lineSubtotal } from '../lib/money'
 import type { NewOrder, ParsedOrder } from '../types/order'
 import { ManualForm } from './ManualForm'
@@ -25,6 +26,7 @@ export function OpeningReview({ initial, spoken, resetButton, onConfirm, onBack 
   const [error, setError] = useState('')
   const editing = drafts.find((item) => item.key === editingKey) ?? null
   const total = grandTotal(drafts)
+  const groups = groupByCategory(drafts)
 
   const confirm = () => {
     const ready = drafts.filter((item) => item.name.trim() && item.unitPrice > 0)
@@ -52,47 +54,60 @@ export function OpeningReview({ initial, spoken, resetButton, onConfirm, onBack 
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {spoken ? <p className="mb-3 text-sm text-muted">「{spoken}」</p> : null}
-        <ul className="space-y-3">
-          {drafts.map((item) => (
-            <li key={item.key} className="rounded-2xl border border-line bg-card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-lg font-bold leading-tight">{item.name || '（商品名なし）'}</p>
-                <button
-                  type="button"
-                  className="shrink-0 text-sm text-muted underline"
-                  onClick={() => setEditingKey(item.key)}
-                >
-                  修正
-                </button>
-              </div>
-              <p className="mt-1 text-muted tabular-nums">
-                {formatYen(item.unitPrice)} × {item.quantity}
-              </p>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-2xl font-bold text-gold tabular-nums">
-                  {formatYen(lineSubtotal(item.unitPrice, item.quantity))}
-                </p>
-                <QuantityStepper
-                  value={item.quantity}
-                  onChange={(quantity) =>
-                    setDrafts((prev) =>
-                      prev.map((row) =>
-                        row.key === item.key ? { ...row, quantity: Math.max(1, quantity) } : row,
-                      ),
-                    )
-                  }
-                />
-              </div>
-              <button
-                type="button"
-                className="mt-3 text-sm text-danger underline"
-                onClick={() => setDrafts((prev) => prev.filter((row) => row.key !== item.key))}
-              >
-                削除
-              </button>
-            </li>
+        <div className="space-y-6">
+          {groups.map((group) => (
+            <section key={group.category}>
+              <h2 className="mb-2 text-sm font-semibold text-muted">{group.category}</h2>
+              <ul className="space-y-3">
+                {group.items.map((item) => (
+                  <li key={item.key} className="rounded-2xl border border-line bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-lg font-bold leading-tight">
+                        {item.name || '（商品名なし）'}
+                      </p>
+                      <button
+                        type="button"
+                        className="shrink-0 text-sm text-muted underline"
+                        onClick={() => setEditingKey(item.key)}
+                      >
+                        修正
+                      </button>
+                    </div>
+                    <p className="mt-1 text-muted tabular-nums">
+                      {formatYen(item.unitPrice)} × {item.quantity}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <p className="text-2xl font-bold text-gold tabular-nums">
+                        {formatYen(lineSubtotal(item.unitPrice, item.quantity))}
+                      </p>
+                      <QuantityStepper
+                        value={item.quantity}
+                        onChange={(quantity) =>
+                          setDrafts((prev) =>
+                            prev.map((row) =>
+                              row.key === item.key
+                                ? { ...row, quantity: Math.max(1, quantity) }
+                                : row,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-3 text-sm text-danger underline"
+                      onClick={() =>
+                        setDrafts((prev) => prev.filter((row) => row.key !== item.key))
+                      }
+                    >
+                      削除
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
         {adding ? (
           <div className="mt-4 rounded-2xl border border-line bg-card p-4">
             <p className="mb-3 font-semibold">品を足す</p>
