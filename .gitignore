@@ -25,3 +25,8 @@ mobile/expo-qr-tunnel.png
 *.njsproj
 *.sln
 *.sw?
+
+# Xcode
+**/xcuserdata/
+**/*.xcuserstate
+DerivedData/
