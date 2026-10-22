@@ -1,0 +1,350 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* WasureteitaDeshouApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* WasureteitaDeshouApp.swift */; };
+		A10000000000000000000002 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* RootTabView.swift */; };
+		A10000000000000000000003 /* VoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* VoiceInputView.swift */; };
+		A10000000000000000000004 /* PermissionExplainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* PermissionExplainerView.swift */; };
+		A10000000000000000000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* SettingsView.swift */; };
+		A10000000000000000000006 /* ScheduleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* ScheduleListView.swift */; };
+		A10000000000000000000007 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* HistoryView.swift */; };
+		A10000000000000000000008 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* SpeechRecognizer.swift */; };
+		A10000000000000000000009 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* AppSettingsStore.swift */; };
+		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* WasureteitaDeshouApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasureteitaDeshouApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* PermissionExplainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionExplainerView.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* ScheduleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleListView.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* AppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStore.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A30000000000000000000001 /* WasureteitaDeshou.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WasureteitaDeshou.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A40000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A50000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A50000000000000000000002 /* WasureteitaDeshou */,
+				A50000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A50000000000000000000002 /* WasureteitaDeshou */ = {
+			isa = PBXGroup;
+			children = (
+				A50000000000000000000004 /* App */,
+				A50000000000000000000005 /* Features */,
+				A50000000000000000000006 /* Services */,
+				A50000000000000000000007 /* Resources */,
+			);
+			path = WasureteitaDeshou;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A30000000000000000000001 /* WasureteitaDeshou.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* WasureteitaDeshouApp.swift */,
+				A20000000000000000000002 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000005 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A50000000000000000000008 /* VoiceInput */,
+				A50000000000000000000009 /* Settings */,
+				A5000000000000000000000A /* Placeholders */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000006 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000008 /* SpeechRecognizer.swift */,
+				A20000000000000000000009 /* AppSettingsStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000007 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000A /* Assets.xcassets */,
+				A2000000000000000000000B /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000008 /* VoiceInput */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000003 /* VoiceInputView.swift */,
+				A20000000000000000000004 /* PermissionExplainerView.swift */,
+			);
+			path = VoiceInput;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000009 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000005 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		A5000000000000000000000A /* Placeholders */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000006 /* ScheduleListView.swift */,
+				A20000000000000000000007 /* HistoryView.swift */,
+			);
+			path = Placeholders;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A60000000000000000000001 /* WasureteitaDeshou */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A70000000000000000000003 /* Build configuration list for PBXNativeTarget "WasureteitaDeshou" */;
+			buildPhases = (
+				A80000000000000000000001 /* Sources */,
+				A40000000000000000000001 /* Frameworks */,
+				A80000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WasureteitaDeshou;
+			productName = WasureteitaDeshou;
+			productReference = A30000000000000000000001 /* WasureteitaDeshou.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A90000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A60000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A70000000000000000000001 /* Build configuration list for PBXProject "WasureteitaDeshou" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ja;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				ja,
+				Base,
+			);
+			mainGroup = A50000000000000000000001;
+			productRefGroup = A50000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A60000000000000000000001 /* WasureteitaDeshou */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A80000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A80000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* WasureteitaDeshouApp.swift in Sources */,
+				A10000000000000000000002 /* RootTabView.swift in Sources */,
+				A10000000000000000000003 /* VoiceInputView.swift in Sources */,
+				A10000000000000000000004 /* PermissionExplainerView.swift in Sources */,
+				A10000000000000000000005 /* SettingsView.swift in Sources */,
+				A10000000000000000000006 /* ScheduleListView.swift in Sources */,
+				A10000000000000000000007 /* HistoryView.swift in Sources */,
+				A10000000000000000000008 /* SpeechRecognizer.swift in Sources */,
+				A10000000000000000000009 /* AppSettingsStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AA0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AA0000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WasureteitaDeshou/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "忘れていたでしょう";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wasureteitadeshou.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AA0000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WasureteitaDeshou/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "忘れていたでしょう";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wasureteitadeshou.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A70000000000000000000001 /* Build configuration list for PBXProject "WasureteitaDeshou" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000001 /* Debug */,
+				AA0000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70000000000000000000003 /* Build configuration list for PBXNativeTarget "WasureteitaDeshou" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000003 /* Debug */,
+				AA0000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A90000000000000000000001 /* Project object */;
+}
