@@ -16,6 +16,7 @@ private struct ResolvePresentation: Identifiable {
 /// 「次へ」は TabView 内 NavigationStack push ではなく fullScreenCover で出す（実機で push が不安定なため）。
 struct RegistrationInputView: View {
     @EnvironmentObject private var draftStore: DraftUtteranceStore
+    @EnvironmentObject private var reminderStore: ReminderStore
     @FocusState private var isEditorFocused: Bool
     @State private var presentedResolve: ResolvePresentation?
     /// 起動直後の一回だけキーボードを出す。cover 表示中は触らない。
@@ -105,6 +106,7 @@ struct RegistrationInputView: View {
             }
         }
         .fullScreenCover(item: $presentedResolve) { presentation in
+            // fullScreenCover は親の EnvironmentObject を引き継がないことがあるため明示渡し
             NavigationStack {
                 PlaceResolveView(rawText: presentation.text) {
                     presentedResolve = nil
@@ -118,6 +120,8 @@ struct RegistrationInputView: View {
                     }
                 }
             }
+            .environmentObject(draftStore)
+            .environmentObject(reminderStore)
         }
     }
 
