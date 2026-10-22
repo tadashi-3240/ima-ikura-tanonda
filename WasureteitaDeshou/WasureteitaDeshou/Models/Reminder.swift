@@ -1,6 +1,6 @@
 import Foundation
 
-/// 端末内に保存する予定（第2段階）。位置通知は第3段階。
+/// 端末内に保存する予定。notifyDistanceMeters で近づき通知の目安距離を持つ。
 struct Reminder: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
     var placeName: String
@@ -10,7 +10,7 @@ struct Reminder: Identifiable, Codable, Equatable, Sendable {
     var longitude: Double
     var rawUtterance: String
     var createdAt: Date
-    /// 第3段階で本実装。枠のみ保持（初期 1000m）。
+    /// 近づき通知の目安距離（300 / 500 / 1000）。保証はしない。
     var notifyDistanceMeters: Int
 
     init(

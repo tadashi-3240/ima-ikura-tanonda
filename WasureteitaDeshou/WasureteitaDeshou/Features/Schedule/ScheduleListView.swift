@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 第2段階: 登録済み予定の一覧（簡易編集・削除・手動完了）。
+/// 登録済み予定の一覧（簡易編集・削除・手動完了・通知距離）。
 struct ScheduleListView: View {
     @EnvironmentObject private var reminderStore: ReminderStore
     @State private var editing: Reminder?
@@ -74,7 +74,7 @@ private struct ReminderRow: View {
                     .font(.system(size: 15))
                     .foregroundStyle(.tertiary)
             }
-            Text(reminder.createdAt.formatted(date: .abbreviated, time: .shortened))
+            Text("通知 約\(reminder.notifyDistanceMeters) m ・ \(reminder.createdAt.formatted(date: .abbreviated, time: .shortened))")
                 .font(.system(size: 14))
                 .foregroundStyle(.tertiary)
         }
@@ -87,6 +87,7 @@ private struct ReminderEditView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var placeName: String
     @State private var task: String
+    @State private var notifyDistance: Int
     let original: Reminder
     let onSave: (Reminder) -> Void
     let onDelete: () -> Void
@@ -99,6 +100,7 @@ private struct ReminderEditView: View {
         original = reminder
         _placeName = State(initialValue: reminder.placeName)
         _task = State(initialValue: reminder.task)
+        _notifyDistance = State(initialValue: AppNotifySettings.clamp(reminder.notifyDistanceMeters))
         self.onSave = onSave
         self.onDelete = onDelete
     }
@@ -115,12 +117,20 @@ private struct ReminderEditView: View {
                         .font(.system(size: 20))
                 }
                 Section {
-                    Text("緯度経度の変更や通知距離は第3段階以降です。")
+                    Picker("通知距離", selection: $notifyDistance) {
+                        Text("300 m").tag(300)
+                        Text("500 m").tag(500)
+                        Text("1000 m").tag(1000)
+                    }
+                    .font(.system(size: 18))
+                    Text("GPS の都合で実際の通知位置は前後します。正確な距離は保証しません。")
                         .font(.system(size: 15))
                         .foregroundStyle(.secondary)
+                } header: {
+                    Text("近づいたら通知")
                 }
                 Section {
-                    Button("手動で完了（一覧から外す）", role: .destructive) {
+                    Button("手動で完了（監視も解除）", role: .destructive) {
                         onDelete()
                         dismiss()
                     }
@@ -138,6 +148,7 @@ private struct ReminderEditView: View {
                         var updated = original
                         updated.placeName = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.task = task.trimmingCharacters(in: .whitespacesAndNewlines)
+                        updated.notifyDistanceMeters = notifyDistance
                         onSave(updated)
                         dismiss()
                     }
@@ -154,6 +165,7 @@ private struct ReminderEditView: View {
 }
 
 #Preview {
-    ScheduleListView()
-        .environmentObject(ReminderStore())
+    let monitor = LocationMonitor()
+    return ScheduleListView()
+        .environmentObject(ReminderStore(locationMonitor: monitor))
 }

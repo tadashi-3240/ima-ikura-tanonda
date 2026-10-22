@@ -28,7 +28,10 @@ struct RootTabView: View {
 }
 
 #Preview {
-    RootTabView()
+    let monitor = LocationMonitor()
+    return RootTabView()
         .environmentObject(DraftUtteranceStore())
-        .environmentObject(ReminderStore())
+        .environmentObject(AppNotifySettings())
+        .environmentObject(monitor)
+        .environmentObject(ReminderStore(locationMonitor: monitor))
 }

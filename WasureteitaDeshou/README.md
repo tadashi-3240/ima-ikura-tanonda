@@ -1,58 +1,52 @@
 # 忘れていたでしょう（iOS）
 
-指定場所に近づいたら知らせる忘れ物防止アプリ（Swift / SwiftUI / iOS 18+）。入力はテキスト中心。音声は iOS キーボードのマイクから使えます。
+指定場所に近づいたら知らせる忘れ物防止アプリ（Swift / SwiftUI / iOS 18+）。入力はテキスト中心。音声は iOS キーボードのマイクから。
 
-このディレクトリは既存の「今いくら頼んだ？」（Expo / Web）とは独立しています。
+## 実装済み
 
-## いま実装されていること
+- **第1**: テキスト入力・「次へ」
+- **第2**: 場所／用事抽出、MapKit 検索・候補／地図、予定一覧
+- **第3**: 接近時ローカル通知（300/500/1000m）、専用音 `piroriron.caf`、Always 位置の導線
 
-### 第1段階
-- 登録タブの大きなテキスト入力（独自巨大マイク UI なし）
-- キーボードのマイクで音声→テキスト可
-- 「次へ」で文章確定
+ビルド識別: **`build: stage3-geo-1`**
 
-### 第2段階
-- 場所／用事の抽出（例: 「金古のセブンイレブンで牛乳を買う」）
-- MapKit 店舗検索（1件→確定確認、複数→候補一覧、0件→地図指定）
-- 予定を端末内に保存し、予定一覧で表示・簡易編集・削除・手動完了
+## 未実装
 
-## まだないこと
+- 第4: 自動解除・履歴本実装
+- 第5: 音声読み上げ（いまは通知音＋文字）
 
-- **第3段階**: GPS ジオフェンス、ローカル通知、距離設定、専用通知音
-- **第4段階**: 滞在による自動解除、履歴の本実装、ワンタップ再登録
-- **第5段階**: 音声読み上げの検証
+## Mac で開く
 
-## Mac で開く（`git pull` 後）
+pbxproj にローカル署名があると `git pull` がコケやすいので、作業前は remote に合わせるのを推奨:
 
 ```bash
 cd /path/to/ima-ikura-tanonda
-git fetch origin
+git fetch
 git checkout cursor/wasureteita-stage1-aaa9
-git pull origin cursor/wasureteita-stage1-aaa9
-
+git reset --hard origin/cursor/wasureteita-stage1-aaa9
+git log -1 --oneline
 cd WasureteitaDeshou
 open WasureteitaDeshou.xcodeproj
 ```
 
-1. Signing & Capabilities で Team を選択
-2. iPhone（iOS 18+）を選んで Run
+Signing で Team を選び、実機（iOS 18+）で Run。
 
-作業場所の目安: `~/Desktop/AI作業場`（preferences）。ローカルのテンプレ `wasureteitadesyo` は無関係です。
+### 通知音の再生成
 
-## 実機テスト手順（第2段階）
+```bash
+cd WasureteitaDeshou
+python3 scripts/generate_piroriron_sound.py   # ffmpeg が必要
+```
 
-1. 登録タブで「金古のセブンイレブンで牛乳を買う」と入力（またはキーボードマイク）→「次へ」
-2. 場所・用事が分かれて表示されること（必要なら手修正）
-3. 「場所を検索して進む」
-   - 候補が1件 → 確認画面へ
-   - 複数 → 一覧から選択（このときだけ一覧）
-   - 見つからない／場所空 → 地図で指定（タップ or「いまの中央を選ぶ」）
-4. 「予定に登録する」→ 予定一覧に用事・店名が出ること
-5. 予定のタップで編集、スワイプで削除／完了できること
-6. 巨大マイク画面が出ないこと。履歴タブはまだプレースホルダ。通知は来ない（第3段階）
+## 実機テスト（第3段階）
 
-位置の「App使用中」許可ダイアログが出たら、近くの検索のために許可してよいです（Always / バックグラウンド通知は未使用）。
+1. 設定で通知距離（300/500/1000）と「正確な距離は保証しない」文言を確認
+2. 予定を登録 → 位置「常に」＋通知を許可
+3. 画面に `build: stage3-geo-1` があること
+4. 登録した場所の通知距離内に入る（またはシミュレータで位置をシミュレート）→ 「忘れていたでしょう？」＋用事文＋ピロリローン系の音
+5. 予定削除／完了後は再通知されないこと
+6. 巨大マイク画面が出ないこと
 
 ## 構成
 
-詳細は [`docs/architecture.md`](docs/architecture.md)。
+[`docs/architecture.md`](docs/architecture.md)

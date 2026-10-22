@@ -7,6 +7,8 @@ struct SimpleUtteranceConfirmView: View {
 
     @EnvironmentObject private var reminderStore: ReminderStore
     @EnvironmentObject private var draftStore: DraftUtteranceStore
+    @EnvironmentObject private var notifySettings: AppNotifySettings
+    @EnvironmentObject private var locationMonitor: LocationMonitor
 
     @StateObject private var locationProvider = UserLocationProvider()
 
@@ -16,6 +18,8 @@ struct SimpleUtteranceConfirmView: View {
     @State private var candidates: [PlaceCandidate] = []
     @State private var selected: PlaceCandidate?
     @State private var errorMessage: String?
+    @State private var showPermissionSheet = false
+    @State private var pendingSaveAfterPermission = false
 
     private let search = PlaceSearchService()
 
@@ -68,6 +72,16 @@ struct SimpleUtteranceConfirmView: View {
         }
         .navigationTitle(phaseTitle)
         .navigationBarTitleDisplayMode(.large)
+        .sheet(isPresented: $showPermissionSheet) {
+            LocationNotifyPermissionView {
+                showPermissionSheet = false
+                if pendingSaveAfterPermission {
+                    pendingSaveAfterPermission = false
+                    commitReminder()
+                }
+            }
+            .environmentObject(locationMonitor)
+        }
     }
 
     private var phaseTitle: String {
@@ -83,7 +97,7 @@ struct SimpleUtteranceConfirmView: View {
     private var reviewContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage2-search-1")
+                Text("build: stage3-geo-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -171,7 +185,7 @@ struct SimpleUtteranceConfirmView: View {
     private var registerConfirmContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage2-search-1")
+                Text("build: stage3-geo-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -183,8 +197,9 @@ struct SimpleUtteranceConfirmView: View {
                     }
                 }
                 labeled("用事", taskText)
+                labeled("通知距離", "\(notifySettings.defaultNotifyDistanceMeters) m（設定で変更可）")
 
-                Text("近づいたときの通知は第3段階で追加します。今は予定として端末内に保存します。")
+                Text("登録すると、この距離の目安で近づいたときに通知します（正確な距離は保証しません）。")
                     .font(.system(size: 16))
                     .foregroundStyle(.secondary)
 
@@ -214,7 +229,7 @@ struct SimpleUtteranceConfirmView: View {
 
     private var savedContent: some View {
         VStack(spacing: 24) {
-            Text("build: stage2-search-1")
+            Text("build: stage3-geo-1")
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
 
@@ -223,7 +238,7 @@ struct SimpleUtteranceConfirmView: View {
                 .foregroundStyle(Color("BrandAccent"))
             Text("予定を登録しました")
                 .font(.system(size: 26, weight: .bold))
-            Text("「予定一覧」から確認・編集・削除できます。")
+            Text("場所に近づくと「忘れていたでしょう？」と通知します。「予定一覧」から距離の変更・削除ができます。")
                 .font(.system(size: 18))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -285,6 +300,18 @@ struct SimpleUtteranceConfirmView: View {
     }
 
     private func saveReminder() {
+        guard selected != nil else { return }
+        locationMonitor.refreshAuthorizationStatus()
+        // Always 未取得なら説明シート。「あとで」でも登録自体は進める。
+        if locationMonitor.authorizationStatus != .authorizedAlways {
+            pendingSaveAfterPermission = true
+            showPermissionSheet = true
+            return
+        }
+        commitReminder()
+    }
+
+    private func commitReminder() {
         guard let selected else { return }
         let reminder = Reminder(
             placeName: selected.name,
@@ -292,7 +319,8 @@ struct SimpleUtteranceConfirmView: View {
             task: taskText.trimmingCharacters(in: .whitespacesAndNewlines),
             latitude: selected.latitude,
             longitude: selected.longitude,
-            rawUtterance: rawText
+            rawUtterance: rawText,
+            notifyDistanceMeters: notifySettings.defaultNotifyDistanceMeters
         )
         reminderStore.add(reminder)
         phase = .saved
@@ -300,9 +328,12 @@ struct SimpleUtteranceConfirmView: View {
 }
 
 #Preview {
-    NavigationStack {
+    let monitor = LocationMonitor()
+    return NavigationStack {
         SimpleUtteranceConfirmView(rawText: "金古のセブンイレブンで牛乳を買う") {}
     }
     .environmentObject(DraftUtteranceStore())
-    .environmentObject(ReminderStore())
+    .environmentObject(AppNotifySettings())
+    .environmentObject(monitor)
+    .environmentObject(ReminderStore(locationMonitor: monitor))
 }

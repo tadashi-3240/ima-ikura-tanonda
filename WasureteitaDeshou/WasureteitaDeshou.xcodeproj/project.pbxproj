@@ -25,7 +25,12 @@
 		A10000000000000000000014 /* PlaceResolveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PlaceResolveView.swift */; };
 		A10000000000000000000015 /* PlaceCandidateListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* PlaceCandidateListView.swift */; };
 		A10000000000000000000016 /* MapPlacePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MapPlacePickerView.swift */; };
+		A10000000000000000000018 /* AppNotifySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* AppNotifySettings.swift */; };
+		A10000000000000000000019 /* ReminderNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ReminderNotifier.swift */; };
+		A1000000000000000000001A /* LocationMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* LocationMonitor.swift */; };
+		A1000000000000000000001B /* LocationNotifyPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* LocationNotifyPermissionView.swift */; };
 		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Assets.xcassets */; };
+		A1000000000000000000001C /* piroriron.caf in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* piroriron.caf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +54,11 @@
 		A20000000000000000000014 /* PlaceResolveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceResolveView.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* PlaceCandidateListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceCandidateListView.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* MapPlacePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlacePickerView.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* AppNotifySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotifySettings.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* ReminderNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderNotifier.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* LocationMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMonitor.swift; sourceTree = "<group>"; };
+		A2000000000000000000001B /* LocationNotifyPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationNotifyPermissionView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* piroriron.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = piroriron.caf; sourceTree = "<group>"; };
 		A30000000000000000000001 /* WasureteitaDeshou.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WasureteitaDeshou.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -117,8 +127,17 @@
 			children = (
 				A2000000000000000000000A /* Assets.xcassets */,
 				A2000000000000000000000B /* Info.plist */,
+				A5000000000000000000000F /* Sounds */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		A5000000000000000000000F /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000001C /* piroriron.caf */,
+			);
+			path = Sounds;
 			sourceTree = "<group>";
 		};
 		A50000000000000000000008 /* Registration */ = {
@@ -134,6 +153,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000005 /* SettingsView.swift */,
+				A2000000000000000000001B /* LocationNotifyPermissionView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -164,6 +184,9 @@
 				A20000000000000000000011 /* PlaceSearchService.swift */,
 				A20000000000000000000012 /* ReminderStore.swift */,
 				A20000000000000000000013 /* UserLocationProvider.swift */,
+				A20000000000000000000018 /* AppNotifySettings.swift */,
+				A20000000000000000000019 /* ReminderNotifier.swift */,
+				A2000000000000000000001A /* LocationMonitor.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -246,6 +269,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000000A /* Assets.xcassets in Resources */,
+				A1000000000000000000001C /* piroriron.caf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,6 +295,10 @@
 				A10000000000000000000011 /* PlaceSearchService.swift in Sources */,
 				A10000000000000000000012 /* ReminderStore.swift in Sources */,
 				A10000000000000000000013 /* UserLocationProvider.swift in Sources */,
+				A10000000000000000000018 /* AppNotifySettings.swift in Sources */,
+				A10000000000000000000019 /* ReminderNotifier.swift in Sources */,
+				A1000000000000000000001A /* LocationMonitor.swift in Sources */,
+				A1000000000000000000001B /* LocationNotifyPermissionView.swift in Sources */,
 				A10000000000000000000014 /* PlaceResolveView.swift in Sources */,
 				A10000000000000000000015 /* PlaceCandidateListView.swift in Sources */,
 				A10000000000000000000016 /* MapPlacePickerView.swift in Sources */,
