@@ -6,14 +6,12 @@ private enum RegistrationStep: Equatable {
 }
 
 /// 登録タブの主画面。大きなテキスト入力が主役。
-/// 音声は iOS キーボードのマイク（音声入力）を使う。アプリ独自の Speech 認識はしない。
-/// 「次へ」は cover / sheet / NavigationPath を使わず、同じタブ内でステップ切替する。
+/// 「次へ」は同じタブ内ステップ切替。現在は切り分け用の単純確認画面のみ（MapKit なし）。
 struct RegistrationInputView: View {
     @EnvironmentObject private var draftStore: DraftUtteranceStore
     @EnvironmentObject private var reminderStore: ReminderStore
     @FocusState private var isEditorFocused: Bool
     @State private var step: RegistrationStep = .input
-    /// 起動直後の一回だけキーボードを出す。resolve 表示中は触らない。
     @State private var didPerformInitialFocus = false
 
     var body: some View {
@@ -23,7 +21,8 @@ struct RegistrationInputView: View {
                 case .input:
                     inputContent
                 case .resolve(let text):
-                    PlaceResolveView(rawText: text) {
+                    // PlaceResolveView は使わない（描画時クラッシュ切り分け）
+                    SimpleUtteranceConfirmView(rawText: text) {
                         step = .input
                     }
                 }
@@ -61,6 +60,11 @@ struct RegistrationInputView: View {
 
     private var inputContent: some View {
         VStack(alignment: .leading, spacing: 20) {
+            Text("build: next-simple-1")
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
             Text("用事を入力")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.secondary)
@@ -111,8 +115,7 @@ struct RegistrationInputView: View {
                     Text(draftStore.confirmedText)
                         .font(.system(size: 20, weight: .medium))
                     Button("この文章で場所を決める") {
-                        isEditorFocused = false
-                        step = .resolve(draftStore.confirmedText)
+                        goToResolve(text: draftStore.confirmedText)
                     }
                     .font(.system(size: 17, weight: .semibold))
                 }
@@ -129,12 +132,20 @@ struct RegistrationInputView: View {
         .padding(24)
     }
 
-    /// disabled 以外では return せず、必ず resolve ステップへ進む。
     private func goNext() {
-        draftStore.confirmDraft()
         isEditorFocused = false
-        let trimmed = draftStore.confirmedText
-        step = .resolve(trimmed)
+        draftStore.confirmDraft()
+        let text = draftStore.draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        goToResolve(text: text)
+    }
+
+    /// キーボード解除のレイアウト更新のあとに step を変える（最初のタップがフォーカス解除だけになるのを避ける）
+    private func goToResolve(text: String) {
+        isEditorFocused = false
+        DispatchQueue.main.async {
+            step = .resolve(text)
+        }
     }
 
     private func performInitialFocusIfNeeded() {

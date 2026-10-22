@@ -10,6 +10,7 @@
 		A10000000000000000000001 /* WasureteitaDeshouApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* WasureteitaDeshouApp.swift */; };
 		A10000000000000000000002 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* RootTabView.swift */; };
 		A10000000000000000000003 /* RegistrationInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RegistrationInputView.swift */; };
+		A10000000000000000000017 /* SimpleUtteranceConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* SimpleUtteranceConfirmView.swift */; };
 		A10000000000000000000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* SettingsView.swift */; };
 		A10000000000000000000006 /* ScheduleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* ScheduleListView.swift */; };
 		A10000000000000000000007 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* HistoryView.swift */; };
@@ -31,6 +32,7 @@
 		A20000000000000000000001 /* WasureteitaDeshouApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasureteitaDeshouApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* RegistrationInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationInputView.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* SimpleUtteranceConfirmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleUtteranceConfirmView.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* ScheduleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleListView.swift; sourceTree = "<group>"; };
 		A20000000000000000000007 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
@@ -123,6 +125,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000003 /* RegistrationInputView.swift */,
+				A20000000000000000000017 /* SimpleUtteranceConfirmView.swift */,
 			);
 			path = Registration;
 			sourceTree = "<group>";
@@ -256,6 +259,7 @@
 				A10000000000000000000001 /* WasureteitaDeshouApp.swift in Sources */,
 				A10000000000000000000002 /* RootTabView.swift in Sources */,
 				A10000000000000000000003 /* RegistrationInputView.swift in Sources */,
+				A10000000000000000000017 /* SimpleUtteranceConfirmView.swift in Sources */,
 				A10000000000000000000005 /* SettingsView.swift in Sources */,
 				A10000000000000000000006 /* ScheduleListView.swift in Sources */,
 				A10000000000000000000007 /* HistoryView.swift in Sources */,
