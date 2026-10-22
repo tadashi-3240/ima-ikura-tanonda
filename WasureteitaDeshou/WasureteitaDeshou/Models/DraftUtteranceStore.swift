@@ -2,7 +2,6 @@ import Foundation
 import Combine
 
 /// 登録タブで入力・確定した文章を端末内に保持する（ログイン不要）。
-/// 場所／用事の解析は第2段階で本実装する。
 @MainActor
 final class DraftUtteranceStore: ObservableObject {
     private enum Keys {
