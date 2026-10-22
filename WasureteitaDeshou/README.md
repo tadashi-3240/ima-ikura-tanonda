@@ -17,7 +17,9 @@
 
 ## Mac で開く
 
-pbxproj にローカル署名があると `git pull` がコケやすいので、作業前は remote に合わせるのを推奨:
+Mac では `更新してXcodeを開く.command` をダブルクリック（初回は右クリック→開く）。
+
+pbxproj にローカル署名があると `git pull` がコケやすいので、作業前は remote に合わせるのを推奨（上記 .command が同じことをします）:
 
 ```bash
 cd /path/to/ima-ikura-tanonda
