@@ -7,7 +7,6 @@ struct PlaceResolveView: View {
 
     @EnvironmentObject private var reminderStore: ReminderStore
     @EnvironmentObject private var draftStore: DraftUtteranceStore
-    @Environment(\.dismiss) private var dismiss
 
     @StateObject private var locationProvider = UserLocationProvider()
 
@@ -67,14 +66,11 @@ struct PlaceResolveView: View {
                 savedContent
             }
         }
-        .navigationTitle(navigationTitle)
+        .navigationTitle(phaseNavigationTitle)
         .navigationBarTitleDisplayMode(.large)
-        .onAppear {
-            locationProvider.requestWhenInUseIfNeeded()
-        }
     }
 
-    private var navigationTitle: String {
+    private var phaseNavigationTitle: String {
         switch phase {
         case .review, .searching: return "内容の確認"
         case .candidates: return "場所の候補"
@@ -208,7 +204,6 @@ struct PlaceResolveView: View {
             Button("登録に戻る") {
                 draftStore.clearAll()
                 onFinished?()
-                dismiss()
             }
             .font(.system(size: 20, weight: .semibold))
             .buttonStyle(.borderedProminent)
@@ -241,6 +236,8 @@ struct PlaceResolveView: View {
         }
 
         phase = .searching
+        // 位置許可は検索開始時のみ（初期描画ではリクエストしない）
+        locationProvider.requestWhenInUseIfNeeded()
         Task {
             let near = await locationProvider.currentCoordinate()
             do {
