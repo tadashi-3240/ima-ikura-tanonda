@@ -14,6 +14,16 @@
 		A10000000000000000000006 /* ScheduleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* ScheduleListView.swift */; };
 		A10000000000000000000007 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* HistoryView.swift */; };
 		A1000000000000000000000C /* DraftUtteranceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DraftUtteranceStore.swift */; };
+		A1000000000000000000000D /* ParsedUtterance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* ParsedUtterance.swift */; };
+		A1000000000000000000000E /* PlaceCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* PlaceCandidate.swift */; };
+		A1000000000000000000000F /* Reminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* Reminder.swift */; };
+		A10000000000000000000010 /* UtteranceParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* UtteranceParser.swift */; };
+		A10000000000000000000011 /* PlaceSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* PlaceSearchService.swift */; };
+		A10000000000000000000012 /* ReminderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* ReminderStore.swift */; };
+		A10000000000000000000013 /* UserLocationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* UserLocationProvider.swift */; };
+		A10000000000000000000014 /* PlaceResolveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PlaceResolveView.swift */; };
+		A10000000000000000000015 /* PlaceCandidateListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* PlaceCandidateListView.swift */; };
+		A10000000000000000000016 /* MapPlacePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MapPlacePickerView.swift */; };
 		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -27,6 +37,16 @@
 		A2000000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000000000000000000000C /* DraftUtteranceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftUtteranceStore.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* ParsedUtterance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedUtterance.swift; sourceTree = "<group>"; };
+		A2000000000000000000000E /* PlaceCandidate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceCandidate.swift; sourceTree = "<group>"; };
+		A2000000000000000000000F /* Reminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminder.swift; sourceTree = "<group>"; };
+		A20000000000000000000010 /* UtteranceParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtteranceParser.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* PlaceSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchService.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* ReminderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* UserLocationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserLocationProvider.swift; sourceTree = "<group>"; };
+		A20000000000000000000014 /* PlaceResolveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceResolveView.swift; sourceTree = "<group>"; };
+		A20000000000000000000015 /* PlaceCandidateListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceCandidateListView.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* MapPlacePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlacePickerView.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* WasureteitaDeshou.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WasureteitaDeshou.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -55,6 +75,7 @@
 				A50000000000000000000004 /* App */,
 				A50000000000000000000005 /* Features */,
 				A5000000000000000000000B /* Models */,
+				A5000000000000000000000C /* Services */,
 				A50000000000000000000007 /* Resources */,
 			);
 			path = WasureteitaDeshou;
@@ -81,6 +102,8 @@
 			isa = PBXGroup;
 			children = (
 				A50000000000000000000008 /* Registration */,
+				A5000000000000000000000D /* PlaceConfirm */,
+				A5000000000000000000000E /* Schedule */,
 				A50000000000000000000009 /* Settings */,
 				A5000000000000000000000A /* Placeholders */,
 			);
@@ -115,7 +138,6 @@
 		A5000000000000000000000A /* Placeholders */ = {
 			isa = PBXGroup;
 			children = (
-				A20000000000000000000006 /* ScheduleListView.swift */,
 				A20000000000000000000007 /* HistoryView.swift */,
 			);
 			path = Placeholders;
@@ -125,8 +147,40 @@
 			isa = PBXGroup;
 			children = (
 				A2000000000000000000000C /* DraftUtteranceStore.swift */,
+				A2000000000000000000000D /* ParsedUtterance.swift */,
+				A2000000000000000000000E /* PlaceCandidate.swift */,
+				A2000000000000000000000F /* Reminder.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		A5000000000000000000000C /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000010 /* UtteranceParser.swift */,
+				A20000000000000000000011 /* PlaceSearchService.swift */,
+				A20000000000000000000012 /* ReminderStore.swift */,
+				A20000000000000000000013 /* UserLocationProvider.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A5000000000000000000000D /* PlaceConfirm */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000014 /* PlaceResolveView.swift */,
+				A20000000000000000000015 /* PlaceCandidateListView.swift */,
+				A20000000000000000000016 /* MapPlacePickerView.swift */,
+			);
+			path = PlaceConfirm;
+			sourceTree = "<group>";
+		};
+		A5000000000000000000000E /* Schedule */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000006 /* ScheduleListView.swift */,
+			);
+			path = Schedule;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -206,6 +260,16 @@
 				A10000000000000000000006 /* ScheduleListView.swift in Sources */,
 				A10000000000000000000007 /* HistoryView.swift in Sources */,
 				A1000000000000000000000C /* DraftUtteranceStore.swift in Sources */,
+				A1000000000000000000000D /* ParsedUtterance.swift in Sources */,
+				A1000000000000000000000E /* PlaceCandidate.swift in Sources */,
+				A1000000000000000000000F /* Reminder.swift in Sources */,
+				A10000000000000000000010 /* UtteranceParser.swift in Sources */,
+				A10000000000000000000011 /* PlaceSearchService.swift in Sources */,
+				A10000000000000000000012 /* ReminderStore.swift in Sources */,
+				A10000000000000000000013 /* UserLocationProvider.swift in Sources */,
+				A10000000000000000000014 /* PlaceResolveView.swift in Sources */,
+				A10000000000000000000015 /* PlaceCandidateListView.swift in Sources */,
+				A10000000000000000000016 /* MapPlacePickerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,10 +1,16 @@
 import SwiftUI
 
+private struct ResolveRoute: Hashable, Identifiable {
+    let id = UUID()
+    let text: String
+}
+
 /// 登録タブの主画面。大きなテキスト入力が主役。
 /// 音声は iOS キーボードのマイク（音声入力）を使う。アプリ独自の Speech 認識はしない。
 struct RegistrationInputView: View {
     @EnvironmentObject private var draftStore: DraftUtteranceStore
     @FocusState private var isEditorFocused: Bool
+    @State private var resolveRoute: ResolveRoute?
 
     var body: some View {
         NavigationStack {
@@ -41,7 +47,7 @@ struct RegistrationInputView: View {
                         .fill(Color(.secondarySystemBackground))
                 )
 
-                Button(action: confirm) {
+                Button(action: goNext) {
                     Text("次へ")
                         .font(.system(size: 22, weight: .semibold))
                         .frame(maxWidth: .infinity)
@@ -51,17 +57,17 @@ struct RegistrationInputView: View {
                 .tint(Color("BrandAccent"))
                 .disabled(draftStore.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                if !draftStore.confirmedText.isEmpty {
+                if !draftStore.confirmedText.isEmpty && resolveRoute == nil {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("確定した文章")
+                        Text("前回確定した文章")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.secondary)
                         Text(draftStore.confirmedText)
-                            .font(.system(size: 22, weight: .medium))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("場所と用事の解析・地図検索はこれから追加します。")
-                            .font(.system(size: 15))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 20, weight: .medium))
+                        Button("この文章で場所を決める") {
+                            resolveRoute = ResolveRoute(text: draftStore.confirmedText)
+                        }
+                        .font(.system(size: 17, weight: .semibold))
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -85,8 +91,12 @@ struct RegistrationInputView: View {
                     .font(.system(size: 17, weight: .semibold))
                 }
             }
+            .navigationDestination(item: $resolveRoute) { route in
+                PlaceResolveView(rawText: route.text) {
+                    resolveRoute = nil
+                }
+            }
             .onAppear {
-                // 起動後に入力欄へフォーカスし、キーボード（マイク）を出しやすくする
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     isEditorFocused = true
                 }
@@ -94,13 +104,17 @@ struct RegistrationInputView: View {
         }
     }
 
-    private func confirm() {
+    private func goNext() {
         draftStore.confirmDraft()
         isEditorFocused = false
+        let text = draftStore.confirmedText
+        guard !text.isEmpty else { return }
+        resolveRoute = ResolveRoute(text: text)
     }
 }
 
 #Preview {
     RegistrationInputView()
         .environmentObject(DraftUtteranceStore())
+        .environmentObject(ReminderStore())
 }

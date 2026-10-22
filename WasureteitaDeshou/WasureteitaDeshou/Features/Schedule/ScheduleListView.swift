@@ -1,0 +1,159 @@
+import SwiftUI
+
+/// 第2段階: 登録済み予定の一覧（簡易編集・削除・手動完了）。
+struct ScheduleListView: View {
+    @EnvironmentObject private var reminderStore: ReminderStore
+    @State private var editing: Reminder?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if reminderStore.reminders.isEmpty {
+                    ContentUnavailableView {
+                        Label("予定はまだありません", systemImage: "list.bullet")
+                    } description: {
+                        Text("「登録」タブで文章を入力し、場所を決めるとここに表示されます。")
+                            .font(.system(size: 18))
+                            .multilineTextAlignment(.center)
+                    }
+                } else {
+                    List {
+                        ForEach(reminderStore.reminders) { reminder in
+                            Button {
+                                editing = reminder
+                            } label: {
+                                ReminderRow(reminder: reminder)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    reminderStore.delete(id: reminder.id)
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    reminderStore.complete(id: reminder.id)
+                                } label: {
+                                    Label("完了", systemImage: "checkmark")
+                                }
+                                .tint(Color("BrandAccent"))
+                            }
+                        }
+                        .onDelete(perform: reminderStore.delete(at:))
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("予定一覧")
+            .navigationBarTitleDisplayMode(.large)
+            .sheet(item: $editing) { reminder in
+                ReminderEditView(reminder: reminder) { updated in
+                    reminderStore.update(updated)
+                } onDelete: {
+                    reminderStore.delete(id: reminder.id)
+                }
+            }
+        }
+    }
+}
+
+private struct ReminderRow: View {
+    let reminder: Reminder
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(reminder.task)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.primary)
+            Text(reminder.placeName)
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+            if !reminder.address.isEmpty {
+                Text(reminder.address)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.tertiary)
+            }
+            Text(reminder.createdAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.system(size: 14))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ReminderEditView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var placeName: String
+    @State private var task: String
+    let original: Reminder
+    let onSave: (Reminder) -> Void
+    let onDelete: () -> Void
+
+    init(
+        reminder: Reminder,
+        onSave: @escaping (Reminder) -> Void,
+        onDelete: @escaping () -> Void
+    ) {
+        original = reminder
+        _placeName = State(initialValue: reminder.placeName)
+        _task = State(initialValue: reminder.task)
+        self.onSave = onSave
+        self.onDelete = onDelete
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("用事") {
+                    TextField("用事", text: $task)
+                        .font(.system(size: 20))
+                }
+                Section("場所名") {
+                    TextField("場所名", text: $placeName)
+                        .font(.system(size: 20))
+                }
+                Section {
+                    Text("緯度経度の変更や通知距離は第3段階以降です。")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                }
+                Section {
+                    Button("手動で完了（一覧から外す）", role: .destructive) {
+                        onDelete()
+                        dismiss()
+                    }
+                    .font(.system(size: 18))
+                }
+            }
+            .navigationTitle("予定を編集")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("閉じる") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        var updated = original
+                        updated.placeName = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        updated.task = task.trimmingCharacters(in: .whitespacesAndNewlines)
+                        onSave(updated)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(
+                        placeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || task.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+#Preview {
+    ScheduleListView()
+        .environmentObject(ReminderStore())
+}
