@@ -3,9 +3,9 @@ import SwiftUI
 struct RootTabView: View {
     var body: some View {
         TabView {
-            VoiceInputView()
+            RegistrationInputView()
                 .tabItem {
-                    Label("登録", systemImage: "mic.circle.fill")
+                    Label("登録", systemImage: "square.and.pencil")
                 }
 
             ScheduleListView()
@@ -29,5 +29,5 @@ struct RootTabView: View {
 
 #Preview {
     RootTabView()
-        .environmentObject(AppSettingsStore())
+        .environmentObject(DraftUtteranceStore())
 }

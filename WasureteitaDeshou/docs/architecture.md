@@ -2,6 +2,12 @@
 
 iOS 18+ / SwiftUI / iPhone専用。既存リポジトリ内の Expo・Web（「今いくら頼んだ？」）とは独立し、ルート直下の **`WasureteitaDeshou/`** に置く。
 
+## 入力方針（訂正済み）
+
+- **起動直後の主画面はテキスト入力**（大きな `TextEditor`）。独自の巨大マイク UI や `SFSpeechRecognizer` の自動開始は使わない。
+- 音声を使う場合は、**iOS キーボードのマイク（音声入力）** からテキスト欄に入れる。
+- 「次へ」で文章を確定・保持する。場所／用事の解析・MapKit は第2段階。
+
 ## ディレクトリ配置（リポジトリ）
 
 ```
@@ -14,8 +20,8 @@ ima-ikura-tanonda/          # 既存モノレポ（触らない）
     └── WasureteitaDeshou/
         ├── App/
         ├── Features/
+        ├── Models/
         ├── Services/       # 第2段階以降で拡充
-        ├── Models/         # 第2段階以降で拡充
         └── Resources/
 ```
 
@@ -23,19 +29,19 @@ ima-ikura-tanonda/          # 既存モノレポ（触らない）
 
 | モジュール | 責務 | 導入段階 |
 |---|---|---|
-| **App** | `@main`、タブシェル、起動ルーティング | 1 |
-| **Features/VoiceInput** | マイク UI、Speech 認識、許可フロー | 1 |
-| **Features/Settings** | 起動時自動開始などのユーザー設定 | 1 |
-| **Features/Schedule** | 予定一覧・編集・削除・手動完了 | 3〜4（枠は1でプレースホルダ） |
+| **App** | `@main`、タブシェル | 1 |
+| **Features/Registration** | テキスト入力 UI、「次へ」で確定 | 1 |
+| **Features/Settings** | 設定画面（入力の説明など） | 1 |
+| **Features/Schedule** | 予定一覧・編集・削除・手動完了 | 2〜4（枠は1でプレースホルダ） |
 | **Features/History** | 履歴・ワンタップ再登録 | 4（枠は1でプレースホルダ） |
-| **Services/Speech** | `SFSpeechRecognizer` / マイクセッション | 1 |
+| **Models/DraftUtteranceStore** | 入力文・確定文の端末内保持 | 1 |
 | **Services/PlaceSearch** | MapKit 店舗検索・候補 | 2 |
 | **Services/Location** | Core Location、距離監視 | 3 |
 | **Services/Notification** | ローカル通知・専用音 | 3 |
-| **Services/Persistence** | 端末内ストア（予定・履歴・設定） | 2〜4（設定の UserDefaults は1から） |
-| **Models** | `Reminder` / `HistoryEntry` など | 2〜4 |
+| **Services/Persistence** | 予定・履歴の永続化 | 2〜4 |
+| **Models** | `Reminder` / `ParsedUtterance` など | 2〜4 |
 
-依存の向きは **Features → Services → Models**。UI が Speech/MapKit を直接握らないよう、認識・検索は Service 経由にする。
+依存の向きは **Features → Services → Models**。
 
 ## 画面構成
 
@@ -43,27 +49,24 @@ ima-ikura-tanonda/          # 既存モノレポ（触らない）
 
 | タブ | 画面 | 第1段階 |
 |---|---|---|
-| 登録 | `VoiceInputView` | **実装** — 中央大マイク、認識結果の大きい表示 |
+| 登録 | `RegistrationInputView` | **実装** — 大きなテキスト欄、「次へ」、確定文の表示 |
 | 予定一覧 | `ScheduleListView` | プレースホルダのみ |
 | 履歴 | `HistoryView` | プレースホルダのみ |
-| 設定 | `SettingsView` | **実装** — 「起動時に音声入力を自動開始」トグル |
+| 設定 | `SettingsView` | **実装** — キーボード音声入力の案内（起動時自動開始はなし） |
 
-起動直後は「登録」タブ。設定で自動開始がオンなら、許可済みのとき認識を自動で開始する。
+起動直後は「登録」タブ（テキスト入力）。
 
 ## 権限（説明タイミング）
 
 | 権限 | Info.plist キー | 取得タイミング | 段階 |
 |---|---|---|---|
-| マイク | `NSMicrophoneUsageDescription` | 初回マイクタップ（または自動開始）時、説明シート後 | 1 |
-| 音声認識 | `NSSpeechRecognitionUsageDescription` | 同上 | 1 |
+| （アプリ独自のマイク／Speech） | — | **不要**（キーボード音声入力は OS 側） | — |
 | 位置（When In Use → Always） | `NSLocationWhenInUse…` / `NSLocationAlwaysAndWhenInUse…` | 場所登録・通知設定時 | 2〜3 |
 | 通知 | —（UNUserNotificationCenter） | 初回リマインダー登録時 | 3 |
 
-第1段階では位置・通知の本実装と Info キー追加は行わない（必要になった段階で追加）。
-
 ## 段階ごとのファイル配置
 
-### 第1段階（今回）— 音声入力と文字変換
+### 第1段階（現行）— テキスト入力と確定
 
 ```
 WasureteitaDeshou/WasureteitaDeshou/
@@ -71,27 +74,27 @@ WasureteitaDeshou/WasureteitaDeshou/
 │   ├── WasureteitaDeshouApp.swift
 │   └── RootTabView.swift
 ├── Features/
-│   ├── VoiceInput/
-│   │   ├── VoiceInputView.swift
-│   │   └── PermissionExplainerView.swift
+│   ├── Registration/
+│   │   └── RegistrationInputView.swift
 │   ├── Settings/
 │   │   └── SettingsView.swift
 │   └── Placeholders/
 │       ├── ScheduleListView.swift
 │       └── HistoryView.swift
-├── Services/
-│   ├── SpeechRecognizer.swift
-│   └── AppSettingsStore.swift
+├── Models/
+│   └── DraftUtteranceStore.swift
 └── Resources/
     ├── Assets.xcassets
     └── Info.plist
 ```
 
+削除済み（方針訂正）: 独自巨大マイク UI、`SFSpeechRecognizer`、起動時自動開始設定、マイク／Speech の Info.plist キー。
+
 未実装（第2段階以降）: 場所／用事の抽出、MapKit、候補選択、GPS 通知、自動解除、履歴本実装、音声読み上げ。
 
 ### 第2段階 — 店舗検索と場所の確定
 
-追加予定: `Services/PlaceSearchService.swift`、`Models/ParsedUtterance.swift`、`Features/PlaceConfirm/`（候補リスト・地図指定）、音声結果からの簡易パース。
+追加予定: `Services/PlaceSearchService.swift`、`Models/ParsedUtterance.swift`、`Features/PlaceConfirm/`（候補リスト・地図指定）、確定文からの簡易パース、予定の端末内保存と一覧表示。
 
 ### 第3段階 — GPS 位置通知
 
@@ -108,11 +111,10 @@ WasureteitaDeshou/WasureteitaDeshou/
 ## 技術メモ
 
 - 最低デプロイ: iOS 18.0、デバイスファミリー iPhone。
-- 音声認識はオンデバイス優先（`requiresOnDeviceRecognition` が使える環境では true）。ネットワーク必須時はユーザーに明示。
-- データは端末内のみ（ログインなし）。第1段階の設定は `UserDefaults` / `@AppStorage` で十分。
+- データは端末内のみ（ログインなし）。確定文は `UserDefaults` で保持。
 - Linux CI では Xcode ビルド不可。実機・シミュレータ検証は macOS + Xcode 上で行う（手順は `WasureteitaDeshou/README.md`）。
 
 ## 既存コードとの境界
 
 - `mobile/`・`src/`・ルートの Vite/Expo 設定は変更しない。
-- ルート `README.md` への追記は任意・最小限。本アプリの Open / 実機手順は `WasureteitaDeshou/README.md` に集約する。
+- 本アプリの Open / 実機手順は `WasureteitaDeshou/README.md` に集約する。

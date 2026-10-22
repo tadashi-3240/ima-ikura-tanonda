@@ -1,25 +1,16 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject private var settings: AppSettingsStore
-
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Toggle(isOn: $settings.autoStartVoiceOnLaunch) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("起動時に自動開始")
-                                .font(.system(size: 20, weight: .semibold))
-                            Text("アプリを開いたとき、音声入力をすぐに始めます。初回は許可の説明が表示されます。")
-                                .font(.system(size: 15))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 6)
-                    }
-                    .tint(Color("BrandAccent"))
+                    Text("入力は登録タブのテキスト欄で行います。音声を使う場合は、キーボードのマイク（音声入力）を選んでください。アプリ独自の音声認識や起動時の自動開始はありません。")
+                        .font(.system(size: 17))
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
                 } header: {
-                    Text("音声入力")
+                    Text("入力について")
                         .font(.system(size: 16, weight: .semibold))
                 }
 
@@ -41,5 +32,4 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
-        .environmentObject(AppSettingsStore())
 }

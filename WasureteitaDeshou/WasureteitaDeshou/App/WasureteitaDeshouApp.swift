@@ -2,12 +2,12 @@ import SwiftUI
 
 @main
 struct WasureteitaDeshouApp: App {
-    @StateObject private var settings = AppSettingsStore()
+    @StateObject private var draftStore = DraftUtteranceStore()
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
-                .environmentObject(settings)
+                .environmentObject(draftStore)
         }
     }
 }
