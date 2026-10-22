@@ -6,7 +6,7 @@ private enum RegistrationStep: Equatable {
 }
 
 /// 登録タブの主画面。大きなテキスト入力が主役。
-/// 「次へ」は同じタブ内ステップ切替。現在は切り分け用の単純確認画面のみ（MapKit なし）。
+/// 「次へ」は同じタブ内ステップ切替 → 内容確認 → MapKit 検索（cover / NavigationPath なし）。
 struct RegistrationInputView: View {
     @EnvironmentObject private var draftStore: DraftUtteranceStore
     @EnvironmentObject private var reminderStore: ReminderStore
@@ -21,7 +21,6 @@ struct RegistrationInputView: View {
                 case .input:
                     inputContent
                 case .resolve(let text):
-                    // PlaceResolveView は使わない（描画時クラッシュ切り分け）
                     SimpleUtteranceConfirmView(rawText: text) {
                         step = .input
                     }
@@ -60,7 +59,7 @@ struct RegistrationInputView: View {
 
     private var inputContent: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("build: next-simple-1")
+            Text("build: stage2-search-1")
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
