@@ -9,7 +9,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage3-geo-1")
+                    Text("build: stage2-candidates-1")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }

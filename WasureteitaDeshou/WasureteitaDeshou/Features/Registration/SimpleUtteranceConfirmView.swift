@@ -20,6 +20,7 @@ struct SimpleUtteranceConfirmView: View {
     @State private var errorMessage: String?
     @State private var showPermissionSheet = false
     @State private var pendingSaveAfterPermission = false
+    @State private var didAutoSearch = false
 
     private let search = PlaceSearchService()
 
@@ -82,6 +83,25 @@ struct SimpleUtteranceConfirmView: View {
             }
             .environmentObject(locationMonitor)
         }
+        .onAppear {
+            autoStartSearchIfNeeded()
+        }
+    }
+
+    /// 次へ直後は自動で MapKit 検索（ワンクッション不要）
+    private func autoStartSearchIfNeeded() {
+        guard !didAutoSearch else { return }
+        guard phase == .review else { return }
+        didAutoSearch = true
+        let place = placeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if place.isEmpty {
+            // 場所なし → 地図へ（用事だけある場合）
+            if !taskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                phase = .map
+            }
+            return
+        }
+        startSearch()
     }
 
     private var phaseTitle: String {
@@ -97,7 +117,7 @@ struct SimpleUtteranceConfirmView: View {
     private var reviewContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage3-geo-1")
+                Text("build: stage2-candidates-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -141,17 +161,21 @@ struct SimpleUtteranceConfirmView: View {
                 if phase == .searching {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text("場所を検索しています…")
+                        Text("お店の候補を探しています…")
                             .font(.system(size: 18))
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
                 } else {
+                    Text("場所を直したら、もう一度検索できます。")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+
                     Button(action: startSearch) {
                         Text(
                             placeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 ? "地図から場所を指定"
-                                : "場所を検索して進む"
+                                : "もう一度検索する"
                         )
                         .font(.system(size: 20, weight: .semibold))
                         .frame(maxWidth: .infinity)
@@ -185,7 +209,7 @@ struct SimpleUtteranceConfirmView: View {
     private var registerConfirmContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage3-geo-1")
+                Text("build: stage2-candidates-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -214,7 +238,7 @@ struct SimpleUtteranceConfirmView: View {
                 .disabled(selected == nil)
 
                 Button("場所を選び直す") {
-                    if candidates.count > 1 {
+                    if !candidates.isEmpty {
                         phase = .candidates
                     } else {
                         phase = .map
@@ -229,7 +253,7 @@ struct SimpleUtteranceConfirmView: View {
 
     private var savedContent: some View {
         VStack(spacing: 24) {
-            Text("build: stage3-geo-1")
+            Text("build: stage2-candidates-1")
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
 
@@ -282,21 +306,30 @@ struct SimpleUtteranceConfirmView: View {
         Task {
             let near = await locationProvider.currentCoordinate()
             do {
-                let results = try await search.search(query: place, near: near)
+                let results = try await search.searchPlaceCandidates(placePhrase: place, near: near)
                 candidates = results
-                if results.isEmpty {
-                    phase = .map
-                } else if results.count == 1 {
-                    selected = results[0]
-                    phase = .confirm
-                } else {
-                    phase = .candidates
-                }
+                applySearchResults(results, placePhrase: place)
             } catch {
                 errorMessage = error.localizedDescription
                 phase = .review
             }
         }
+    }
+
+    /// 2件以上 → 必ず一覧。チェーンは1件でも一覧（勝手に確定しない）。非チェーンの1件のみ確認へ。
+    private func applySearchResults(_ results: [PlaceCandidate], placePhrase: String) {
+        if results.isEmpty {
+            phase = .map
+            return
+        }
+        let isChain = PlaceSearchService.isLikelyChain(placePhrase)
+        if results.count == 1 && !isChain {
+            selected = results[0]
+            phase = .confirm
+            return
+        }
+        candidates = results
+        phase = .candidates
     }
 
     private func saveReminder() {

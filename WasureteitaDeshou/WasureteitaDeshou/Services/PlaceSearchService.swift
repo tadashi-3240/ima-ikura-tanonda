@@ -16,34 +16,141 @@ enum PlaceSearchError: LocalizedError {
     }
 }
 
-/// Apple MapKit による店舗・場所検索。
+/// Apple MapKit による店舗・場所検索。チェーンは候補が複数出やすいようクエリを広げる。
 @MainActor
 final class PlaceSearchService {
     private let geocoder = CLGeocoder()
 
+    /// コンビニ等。一覧選択を優先したいブランド。
+    static let chainBrandKeywords: [String] = [
+        "セブンイレブン", "セブン−イレブン", "セブン-イレブン", "7-Eleven", "7‑Eleven",
+        "ファミリーマート", "ファミマ",
+        "ローソン",
+        "ミニストップ",
+        "デイリーヤマザキ",
+        "セイコーマート",
+        "イオン", "マックスバリュ",
+        "コストコ"
+    ]
+
+    static func isLikelyChain(_ placePhrase: String) -> Bool {
+        let p = placePhrase
+        return chainBrandKeywords.contains { p.localizedCaseInsensitiveContains($0) }
+            || p.contains("セブン")
+    }
+
+    /// 場所フレーズから複数クエリで検索し、候補をマージする。
+    func searchPlaceCandidates(
+        placePhrase: String,
+        near userLocation: CLLocationCoordinate2D? = nil
+    ) async throws -> [PlaceCandidate] {
+        let base = placePhrase.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !base.isEmpty else { throw PlaceSearchError.emptyQuery }
+
+        let queries = queryVariants(for: base)
+        var merged: [PlaceCandidate] = []
+        for q in queries {
+            let batch = try await searchOnce(query: q, near: userLocation, radiusMeters: 80_000)
+            merged.append(contentsOf: batch)
+        }
+
+        var result = deduplicated(merged)
+
+        // チェーンで1件しか取れないときは、ブランド＋地域だけでもう一度広めに取る
+        if result.count <= 1, let brandQuery = broadenedChainQuery(for: base) {
+            let extra = try await searchOnce(query: brandQuery, near: userLocation, radiusMeters: 120_000)
+            result = deduplicated(result + extra)
+        }
+
+        return result
+    }
+
     func search(query: String, near userLocation: CLLocationCoordinate2D? = nil) async throws -> [PlaceCandidate] {
+        try await searchPlaceCandidates(placePhrase: query, near: userLocation)
+    }
+
+    private func searchOnce(
+        query: String,
+        near userLocation: CLLocationCoordinate2D?,
+        radiusMeters: CLLocationDistance
+    ) async throws -> [PlaceCandidate] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { throw PlaceSearchError.emptyQuery }
+        guard !q.isEmpty else { return [] }
 
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = q
         request.resultTypes = [.pointOfInterest, .address]
         if let userLocation {
-            let region = MKCoordinateRegion(
+            request.region = MKCoordinateRegion(
                 center: userLocation,
-                latitudinalMeters: 40_000,
-                longitudinalMeters: 40_000
+                latitudinalMeters: radiusMeters,
+                longitudinalMeters: radiusMeters
             )
-            request.region = region
         }
 
         do {
             let response = try await MKLocalSearch(request: request).start()
-            let mapped = response.mapItems.map(PlaceCandidate.init(mapItem:))
-            return deduplicated(mapped)
+            return response.mapItems.map(PlaceCandidate.init(mapItem:))
         } catch {
             throw PlaceSearchError.failed("場所の検索に失敗しました。通信環境を確認してください。")
         }
+    }
+
+    /// 「金古のセブンイレブン」→ 複数の MapKit 向きクエリ
+    private func queryVariants(for place: String) -> [String] {
+        var variants: [String] = [place]
+
+        let spaced = place
+            .replacingOccurrences(of: "の", with: " ")
+            .replacingOccurrences(of: "　", with: " ")
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if spaced != place { variants.append(spaced) }
+
+        // 地域 + ブランドの語順入れ替え
+        if let brand = Self.chainBrandKeywords.first(where: { place.contains($0) })
+            ?? (place.contains("セブン") ? "セブンイレブン" : nil) {
+            let area = place
+                .replacingOccurrences(of: brand, with: "")
+                .replacingOccurrences(of: "セブン", with: "")
+                .replacingOccurrences(of: "の", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !area.isEmpty {
+                variants.append("\(area) \(brand)")
+                variants.append("\(brand) \(area)")
+                // 町名っぽいとき
+                if !area.contains("市") && !area.contains("町") {
+                    variants.append("\(area)町 \(brand)")
+                    variants.append("\(brand) \(area)町")
+                }
+            } else {
+                variants.append(brand)
+            }
+        }
+
+        // 重複除去（順序維持）
+        var seen = Set<String>()
+        return variants.filter { seen.insert($0).inserted }
+    }
+
+    private func broadenedChainQuery(for place: String) -> String? {
+        guard Self.isLikelyChain(place) else { return nil }
+        if let brand = Self.chainBrandKeywords.first(where: { place.contains($0) }) {
+            let area = place
+                .replacingOccurrences(of: brand, with: "")
+                .replacingOccurrences(of: "の", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if area.isEmpty { return brand }
+            return "\(area) \(brand)"
+        }
+        if place.contains("セブン") {
+            let area = place.replacingOccurrences(of: "セブン", with: "")
+                .replacingOccurrences(of: "イレブン", with: "")
+                .replacingOccurrences(of: "の", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return area.isEmpty ? "セブンイレブン" : "\(area) セブンイレブン"
+        }
+        return nil
     }
 
     /// 地図で選んだ座標から住所・名前を補完する。
