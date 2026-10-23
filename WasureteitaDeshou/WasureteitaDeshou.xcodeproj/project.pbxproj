@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* WasureteitaDeshouApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* WasureteitaDeshouApp.swift */; };
+		A1000000000000000000001D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* AppDelegate.swift */; };
 		A10000000000000000000002 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* RootTabView.swift */; };
 		A10000000000000000000003 /* RegistrationInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RegistrationInputView.swift */; };
 		A10000000000000000000017 /* SimpleUtteranceConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* SimpleUtteranceConfirmView.swift */; };
@@ -35,6 +36,7 @@
 
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* WasureteitaDeshouApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasureteitaDeshouApp.swift; sourceTree = "<group>"; };
+		A2000000000000000000001D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* RegistrationInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationInputView.swift; sourceTree = "<group>"; };
 		A20000000000000000000017 /* SimpleUtteranceConfirmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleUtteranceConfirmView.swift; sourceTree = "<group>"; };
@@ -105,6 +107,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000001 /* WasureteitaDeshouApp.swift */,
+				A2000000000000000000001D /* AppDelegate.swift */,
 				A20000000000000000000002 /* RootTabView.swift */,
 			);
 			path = App;
@@ -281,6 +284,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000001 /* WasureteitaDeshouApp.swift in Sources */,
+				A1000000000000000000001D /* AppDelegate.swift in Sources */,
 				A10000000000000000000002 /* RootTabView.swift in Sources */,
 				A10000000000000000000003 /* RegistrationInputView.swift in Sources */,
 				A10000000000000000000017 /* SimpleUtteranceConfirmView.swift in Sources */,

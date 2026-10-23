@@ -38,8 +38,9 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 5. `Info.plist` に `UIBackgroundModes` = `location`（領域監視の信頼性。常時 GPS は使わない）
 6. 削除・手動完了で監視解除。距離は予定ごと・設定のデフォルトで変更可
 7. **正確な距離は保証しない**／iOS の進入検知は数分遅れることがある（設定に明記）
-8. ビルド識別: `build: stage3-geo-2`
-9. 音の再生成: `python3 scripts/generate_piroriron_sound.py`（ffmpeg 必要）
+8. ビルド識別: `build: stage3-geo-3`
+9. フォアグラウンド表示: `AppDelegate` が `UNUserNotificationCenterDelegate.willPresent` で `[.banner, .sound, .list]` を返す（`trigger: nil` でも前面時にバナーが出る）
+10. 音の再生成: `python3 scripts/generate_piroriron_sound.py`（ffmpeg 必要）
 
 ### やらない（未実装）
 

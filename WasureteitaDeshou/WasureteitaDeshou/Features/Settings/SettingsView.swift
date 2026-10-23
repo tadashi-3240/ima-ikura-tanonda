@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct SettingsView: View {
     @EnvironmentObject private var notifySettings: AppNotifySettings
@@ -6,12 +7,13 @@ struct SettingsView: View {
     @EnvironmentObject private var reminderStore: ReminderStore
 
     @State private var testNotifyMessage: String?
+    @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage3-geo-2")
+                    Text("build: stage3-geo-3")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -50,6 +52,12 @@ struct SettingsView: View {
                             .foregroundStyle(locationStatusColor)
                     }
 
+                    LabeledContent("通知") {
+                        Text(notificationStatusLabel)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(notificationStatusColor)
+                    }
+
                     LabeledContent("監視中の場所") {
                         Text("\(locationMonitor.monitoredRegionCount) 件")
                             .font(.system(size: 16))
@@ -58,6 +66,13 @@ struct SettingsView: View {
 
                     if locationMonitor.authorizationStatus != .authorizedAlways {
                         Text("バックグラウンドで近づいたことを確実に知らせるには、位置情報を「常に」にしてください。「利用中のみ」だとアプリを閉じているときの進入検知が弱くなります。")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.orange)
+                            .padding(.vertical, 4)
+                    }
+
+                    if notificationAuthStatus == .denied {
+                        Text("許可されていません。iPhone設定→通知→忘れていたでしょう、でオンにしてください。")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(.orange)
                             .padding(.vertical, 4)
@@ -74,17 +89,19 @@ struct SettingsView: View {
                     Button("通知の許可を求める") {
                         Task {
                             _ = await ReminderNotifier().requestAuthorization()
+                            await refreshNotificationAuthStatus()
+                            if notificationAuthStatus == .denied {
+                                testNotifyMessage = "許可されていません。iPhone設定→通知→忘れていたでしょう、でオンにしてください。"
+                            } else if notificationAuthStatus == .authorized || notificationAuthStatus == .provisional {
+                                testNotifyMessage = "通知は許可されています。"
+                            }
                         }
                     }
                     .font(.system(size: 17))
 
                     Button("テスト通知を送る") {
-                        ReminderNotifier().postTestNotification { success, errorMessage in
-                            if success {
-                                testNotifyMessage = "テスト通知を送りました。"
-                            } else {
-                                testNotifyMessage = errorMessage ?? "テスト通知に失敗しました。"
-                            }
+                        Task {
+                            await sendTestNotification()
                         }
                     }
                     .font(.system(size: 17))
@@ -111,7 +128,7 @@ struct SettingsView: View {
                     Text("権限・動作確認")
                         .font(.system(size: 16, weight: .semibold))
                 } footer: {
-                    Text("バックグラウンドでも知らせるには、設定アプリでこのアプリの位置情報を「常に」にしてください。iOS の領域監視（ジオフェンス）は、進入・退出の検知に数分かかることがあります。すぐ反応しない場合は「圏内を再判定」を試すか、しばらく待ってください。")
+                    Text("バックグラウンドでも知らせるには、設定アプリでこのアプリの位置情報を「常に」にしてください。iOS の領域監視（ジオフェンス）は、進入・退出の検知に数分かかることがあります。すぐ反応しない場合は「圏内を再判定」を試すか、しばらく待ってください。アプリ前面でもテスト通知のバナーが出ます。")
                         .font(.system(size: 14))
                 }
 
@@ -129,6 +146,39 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 locationMonitor.refreshAuthorizationStatus()
+                Task { await refreshNotificationAuthStatus() }
+            }
+        }
+    }
+
+    private func refreshNotificationAuthStatus() async {
+        notificationAuthStatus = await ReminderNotifier().authorizationStatus()
+    }
+
+    private func sendTestNotification() async {
+        let notifier = ReminderNotifier()
+        var status = await notifier.authorizationStatus()
+
+        if status == .notDetermined {
+            _ = await notifier.requestAuthorization()
+            status = await notifier.authorizationStatus()
+        }
+
+        notificationAuthStatus = status
+
+        switch status {
+        case .denied, .notDetermined:
+            testNotifyMessage = "許可されていません。iPhone設定→通知→忘れていたでしょう、でオンにしてください。"
+            return
+        default:
+            break
+        }
+
+        notifier.postTestNotification { success, errorMessage in
+            if success {
+                testNotifyMessage = "テスト通知を送りました。バナーが出ない場合は、上の通知ステータスを確認してください。"
+            } else {
+                testNotifyMessage = errorMessage ?? "テスト通知に失敗しました。"
             }
         }
     }
@@ -150,6 +200,26 @@ struct SettingsView: View {
         case .authorizedWhenInUse: return .orange
         case .denied, .restricted: return .red
         default: return .secondary
+        }
+    }
+
+    private var notificationStatusLabel: String {
+        switch notificationAuthStatus {
+        case .authorized: return "許可"
+        case .provisional: return "仮許可"
+        case .ephemeral: return "一時許可"
+        case .denied: return "拒否"
+        case .notDetermined: return "未設定"
+        @unknown default: return "不明"
+        }
+    }
+
+    private var notificationStatusColor: Color {
+        switch notificationAuthStatus {
+        case .authorized, .provisional, .ephemeral: return .secondary
+        case .denied: return .red
+        case .notDetermined: return .orange
+        @unknown default: return .secondary
         }
     }
 }
