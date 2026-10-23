@@ -40,12 +40,19 @@ final class PlaceSearchService {
     }
 
     /// 場所フレーズから複数クエリで検索し、候補をマージする。
+    /// `savedPlaces` の名前部分一致は MapKit より **先頭** に載せる（MapKit が空でも SavedPlace だけで返す）。
     func searchPlaceCandidates(
         placePhrase: String,
-        near userLocation: CLLocationCoordinate2D? = nil
+        near userLocation: CLLocationCoordinate2D? = nil,
+        savedPlaces: [SavedPlace] = []
     ) async throws -> [PlaceCandidate] {
         let base = placePhrase.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty else { throw PlaceSearchError.emptyQuery }
+
+        let savedCandidates = savedPlaces
+            .filter { $0.matchesQuery(base) }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .map { $0.asPlaceCandidate() }
 
         let queries = queryVariants(for: base)
         var merged: [PlaceCandidate] = []
@@ -54,19 +61,40 @@ final class PlaceSearchService {
             merged.append(contentsOf: batch)
         }
 
-        var result = deduplicated(merged)
+        var mapkitResult = deduplicated(merged)
 
         // チェーンで1件しか取れないときは、ブランド＋地域だけでもう一度広めに取る
-        if result.count <= 1, let brandQuery = broadenedChainQuery(for: base) {
+        if mapkitResult.count <= 1, let brandQuery = broadenedChainQuery(for: base) {
             let extra = try await searchOnce(query: brandQuery, near: userLocation, radiusMeters: 120_000)
-            result = deduplicated(result + extra)
+            mapkitResult = deduplicated(mapkitResult + extra)
         }
 
-        return result
+        return mergeSavedFirst(saved: savedCandidates, mapkit: mapkitResult)
     }
 
-    func search(query: String, near userLocation: CLLocationCoordinate2D? = nil) async throws -> [PlaceCandidate] {
-        try await searchPlaceCandidates(placePhrase: query, near: userLocation)
+    func search(
+        query: String,
+        near userLocation: CLLocationCoordinate2D? = nil,
+        savedPlaces: [SavedPlace] = []
+    ) async throws -> [PlaceCandidate] {
+        try await searchPlaceCandidates(placePhrase: query, near: userLocation, savedPlaces: savedPlaces)
+    }
+
+    /// SavedPlace を先頭に。MapKit 側で同じ座標近傍は落とす。
+    private func mergeSavedFirst(saved: [PlaceCandidate], mapkit: [PlaceCandidate]) -> [PlaceCandidate] {
+        guard !saved.isEmpty else { return mapkit }
+        var result = saved
+        for item in mapkit {
+            let nearSaved = saved.contains {
+                let a = CLLocation(latitude: $0.latitude, longitude: $0.longitude)
+                let b = CLLocation(latitude: item.latitude, longitude: item.longitude)
+                return a.distance(from: b) <= SavedPlaceStore.proximityMeters
+            }
+            if !nearSaved {
+                result.append(item)
+            }
+        }
+        return result
     }
 
     private func searchOnce(

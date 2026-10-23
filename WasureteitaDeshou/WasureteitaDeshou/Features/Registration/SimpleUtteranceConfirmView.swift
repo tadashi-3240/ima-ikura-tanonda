@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 
 /// 内容確認 → 場所の決め方（店舗検索／自宅）→ 候補／地図 → 予定保存。
@@ -10,6 +11,7 @@ struct SimpleUtteranceConfirmView: View {
     @EnvironmentObject private var notifySettings: AppNotifySettings
     @EnvironmentObject private var locationMonitor: LocationMonitor
     @EnvironmentObject private var homeStore: HomePlaceStore
+    @EnvironmentObject private var savedPlaceStore: SavedPlaceStore
 
     @StateObject private var locationProvider = UserLocationProvider()
 
@@ -102,7 +104,7 @@ struct SimpleUtteranceConfirmView: View {
     private var reviewContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage4-home-1")
+                Text("build: stage4-places-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -224,7 +226,7 @@ struct SimpleUtteranceConfirmView: View {
     private var registerConfirmContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage4-home-1")
+                Text("build: stage4-places-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -265,7 +267,7 @@ struct SimpleUtteranceConfirmView: View {
 
     private var savedContent: some View {
         VStack(spacing: 24) {
-            Text("build: stage4-home-1")
+            Text("build: stage4-places-1")
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
 
@@ -319,7 +321,11 @@ struct SimpleUtteranceConfirmView: View {
         Task {
             let near = await locationProvider.currentCoordinate()
             do {
-                let results = try await search.searchPlaceCandidates(placePhrase: place, near: near)
+                let results = try await search.searchPlaceCandidates(
+                    placePhrase: place,
+                    near: near,
+                    savedPlaces: savedPlaceStore.places
+                )
                 candidates = results
                 applySearchResults(results, placePhrase: place)
             } catch {
@@ -329,14 +335,16 @@ struct SimpleUtteranceConfirmView: View {
         }
     }
 
-    /// 2件以上 → 必ず一覧。チェーンは1件でも一覧（勝手に確定しない）。非チェーンの1件のみ確認へ。
+    /// 2件以上 → 必ず一覧。チェーンは1件でも一覧（勝手に確定しない）。
+    /// SavedPlace のみ1件／非チェーンの MapKit 1件 → 確認へ。SavedPlace が空でも MapKit 空なら地図へ。
     private func applySearchResults(_ results: [PlaceCandidate], placePhrase: String) {
         if results.isEmpty {
             phase = .map
             return
         }
+        let onlySaved = results.count == 1 && results[0].id.hasPrefix("saved|")
         let isChain = PlaceSearchService.isLikelyChain(placePhrase)
-        if results.count == 1 && !isChain {
+        if results.count == 1 && (onlySaved || !isChain) {
             selected = results[0]
             phase = .confirm
             return
@@ -405,7 +413,26 @@ struct SimpleUtteranceConfirmView: View {
             notifyDistanceMeters: notifySettings.defaultNotifyDistanceMeters
         )
         reminderStore.add(reminder)
+        rememberPlaceIfNeeded(selected)
         phase = .saved
+    }
+
+    /// 自宅以外を SavedPlace に upsert。自宅は二重保存しない。
+    private func rememberPlaceIfNeeded(_ place: PlaceCandidate) {
+        if place.id.hasPrefix("home|") { return }
+        if let home = homeStore.home {
+            let homeLoc = CLLocation(latitude: home.latitude, longitude: home.longitude)
+            let placeLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
+            if homeLoc.distance(from: placeLoc) <= SavedPlaceStore.proximityMeters {
+                return
+            }
+        }
+        savedPlaceStore.upsertFromRegistration(
+            displayName: place.name,
+            address: place.address,
+            latitude: place.latitude,
+            longitude: place.longitude
+        )
     }
 }
 
@@ -419,4 +446,5 @@ struct SimpleUtteranceConfirmView: View {
     .environmentObject(monitor)
     .environmentObject(ReminderStore(locationMonitor: monitor))
     .environmentObject(HomePlaceStore())
+    .environmentObject(SavedPlaceStore())
 }

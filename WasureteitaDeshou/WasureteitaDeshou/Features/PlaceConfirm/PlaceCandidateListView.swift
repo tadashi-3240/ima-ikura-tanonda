@@ -13,9 +13,16 @@ struct PlaceCandidateListView: View {
                         onSelect(candidate)
                     } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(candidate.name)
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundStyle(.primary)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(candidate.name)
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                                if candidate.id.hasPrefix("saved|") {
+                                    Text("保存した場所")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(Color("BrandAccent"))
+                                }
+                            }
                             if !candidate.address.isEmpty {
                                 Text(candidate.address)
                                     .font(.system(size: 16))

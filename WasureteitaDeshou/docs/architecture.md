@@ -14,9 +14,10 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | **Features/Registration** | テキスト入力 → 内容確認 → 店舗検索／自宅 | 1〜2+自宅 |
 | **Features/Schedule** | 予定一覧・編集・削除・手動完了（履歴へ） | 2〜4 |
 | **Features/History** | 履歴表示・ワンタップ再登録 | 4 |
-| **Features/Settings** | 通知距離・権限・**自宅設定**・距離／滞在非保証 | 3〜4+自宅 |
-| **Services/PlaceSearch** | MapKit 検索 | 2 |
+| **Features/Settings** | 通知距離・権限・自宅・**保存した場所**・距離／滞在非保証 | 3〜4+自宅+呼び名 |
+| **Services/PlaceSearch** | MapKit 検索＋SavedPlace を候補先頭へ | 2+places |
 | **Services/HomePlaceStore** | 自宅の端末内永続化 | 自宅 |
+| **Services/SavedPlaceStore** | 登録済み場所の呼び名（UserDefaults） | places |
 | **Services/LocationMonitor** | 接近＋滞在の `CLCircularRegion`、限定的位置更新 | 3〜4 |
 | **Services/ReminderNotifier** | ローカル通知＋`piroriron.caf` | 3 |
 | **Services/AppNotifySettings** | デフォルト距離 300/500/1000 | 3 |
@@ -30,13 +31,20 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | 位置 Always | 予定登録時の説明シート／設定。BG 接近・滞在に推奨 |
 | 通知 | 同上 |
 
+## 呼び名で場所を覚える（stage4-places-1）
+
+1. 予定確定時、場所を `SavedPlace` に upsert（約50m近傍なら名前更新）。表示名は確定時の `placeName`
+2. 自宅（`HomePlace`）は二重保存しない
+3. 店舗検索時、SavedPlace を名前部分一致で探し候補の **先頭** に載せる（MapKit が空でも SavedPlace だけで候補へ）
+4. 設定「保存した場所」で呼び名の編集・削除
+5. ビルド識別: `build: stage4-places-1`
+
 ## 自宅（stage4-home-1）
 
 1. 設定「自宅を設定」: 名前（既定「自宅」）・緯度経度・住所（任意）。いまの位置（When In Use）または地図ピン
 2. 内容確認のあと場所の決め方: **店舗を検索** / **自宅を使う**（未設定ならその場で位置取得 or 設定へ）
 3. パースで「自宅で〜」「家に着いたら〜」「帰ったら〜」→ `suggestsHome`＋用事抽出
 4. 通知・滞在解除・履歴は既存 Reminder / LocationMonitor（`placeName` が「自宅」等）
-5. ビルド識別: `build: stage4-home-1`
 
 ## 第4段階（滞在）の振る舞い
 
@@ -55,8 +63,11 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 ```
 WasureteitaDeshou/WasureteitaDeshou/
 ├── Models/HomePlace.swift
+├── Models/SavedPlace.swift
 ├── Services/HomePlaceStore.swift
+├── Services/SavedPlaceStore.swift
 ├── Features/Settings/HomePlaceSettingsView.swift
+├── Features/Settings/SavedPlacesSettingsView.swift
 ├── Features/Registration/SimpleUtteranceConfirmView.swift
 └── Resources/Sounds/piroriron.caf
 ```

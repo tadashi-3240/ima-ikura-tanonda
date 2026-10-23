@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var locationMonitor: LocationMonitor
     @EnvironmentObject private var reminderStore: ReminderStore
     @EnvironmentObject private var homeStore: HomePlaceStore
+    @EnvironmentObject private var savedPlaceStore: SavedPlaceStore
 
     @State private var testNotifyMessage: String?
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
@@ -14,7 +15,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage4-home-1")
+                    Text("build: stage4-places-1")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -55,6 +56,33 @@ struct SettingsView: View {
                         .font(.system(size: 16, weight: .semibold))
                 } footer: {
                     Text("店舗だけでなく自宅を場所にして、自分用の用事を通知できます。データは端末内のみです。")
+                        .font(.system(size: 14))
+                }
+
+                Section {
+                    NavigationLink {
+                        SavedPlacesSettingsView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("保存した場所")
+                                .font(.system(size: 18, weight: .semibold))
+                            if savedPlaceStore.places.isEmpty {
+                                Text("予定を登録すると呼び名で覚えて、次回の検索候補に出ます。")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(savedPlaceStore.places.count) 件（タップで呼び名の編集・削除）")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("呼び名")
+                        .font(.system(size: 16, weight: .semibold))
+                } footer: {
+                    Text("自宅とは別です。「水江の製油所」など、一度登録した場所を部分一致で候補の先頭に出します。")
                         .font(.system(size: 14))
                 }
 
@@ -277,4 +305,5 @@ struct SettingsView: View {
         .environmentObject(monitor)
         .environmentObject(ReminderStore(locationMonitor: monitor))
         .environmentObject(HomePlaceStore())
+        .environmentObject(SavedPlaceStore())
 }

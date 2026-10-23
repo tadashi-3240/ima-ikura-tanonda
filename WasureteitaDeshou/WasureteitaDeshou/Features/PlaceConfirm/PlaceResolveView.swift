@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 
 /// 「次へ」のあと: 場所／用事の表示 → MapKit 検索 → 一意／候補／地図。
@@ -7,6 +8,8 @@ struct PlaceResolveView: View {
 
     @EnvironmentObject private var reminderStore: ReminderStore
     @EnvironmentObject private var draftStore: DraftUtteranceStore
+    @EnvironmentObject private var homeStore: HomePlaceStore
+    @EnvironmentObject private var savedPlaceStore: SavedPlaceStore
 
     @StateObject private var locationProvider = UserLocationProvider()
 
@@ -241,7 +244,11 @@ struct PlaceResolveView: View {
         Task {
             let near = await locationProvider.currentCoordinate()
             do {
-                let results = try await search.search(query: place, near: near)
+                let results = try await search.search(
+                    query: place,
+                    near: near,
+                    savedPlaces: savedPlaceStore.places
+                )
                 candidates = results
                 if results.isEmpty {
                     phase = .map
@@ -269,6 +276,24 @@ struct PlaceResolveView: View {
             rawUtterance: rawText
         )
         reminderStore.add(reminder)
+        rememberPlaceIfNeeded(selected)
         phase = .saved
+    }
+
+    private func rememberPlaceIfNeeded(_ place: PlaceCandidate) {
+        if place.id.hasPrefix("home|") { return }
+        if let home = homeStore.home {
+            let homeLoc = CLLocation(latitude: home.latitude, longitude: home.longitude)
+            let placeLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
+            if homeLoc.distance(from: placeLoc) <= SavedPlaceStore.proximityMeters {
+                return
+            }
+        }
+        savedPlaceStore.upsertFromRegistration(
+            displayName: place.name,
+            address: place.address,
+            latitude: place.latitude,
+            longitude: place.longitude
+        )
     }
 }
