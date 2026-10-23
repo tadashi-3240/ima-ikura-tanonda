@@ -7,11 +7,13 @@ import Combine
 final class LocationMonitor: NSObject, ObservableObject {
     @Published private(set) var authorizationStatus: CLAuthorizationStatus
     @Published private(set) var lastErrorMessage: String?
+    /// 現在システムに渡している監視領域の件数
+    @Published private(set) var monitoredRegionCount: Int = 0
 
     private let manager = CLLocationManager()
     private let notifier = ReminderNotifier()
     private var reminderLookup: [String: Reminder] = [:]
-    /// 同じ領域にいるあいだの連打を防ぐ（退出でクリア）
+    /// 同じ領域にいるあいだの連打を防ぐ（退出でクリア）。通知成功後のみセット。
     private var notifiedWhileInside: Set<String> = []
 
     override init() {
@@ -19,11 +21,14 @@ final class LocationMonitor: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.pausesLocationUpdatesAutomatically = true
+        // 常時 GPS（continuous）は使わない。領域監視のみ。
         manager.allowsBackgroundLocationUpdates = false
+        refreshMonitoredCount()
     }
 
     func refreshAuthorizationStatus() {
         authorizationStatus = manager.authorizationStatus
+        refreshMonitoredCount()
     }
 
     func requestWhenInUse() {
@@ -50,6 +55,7 @@ final class LocationMonitor: NSObject, ObservableObject {
         for reminder in reminders {
             startOrUpdate(reminder: reminder)
         }
+        refreshMonitoredCount()
     }
 
     func stopMonitoring(id: UUID) {
@@ -59,6 +65,19 @@ final class LocationMonitor: NSObject, ObservableObject {
         for region in manager.monitoredRegions where region.identifier == key {
             manager.stopMonitoring(for: region)
         }
+        refreshMonitoredCount()
+    }
+
+    /// フォアグラウンド復帰時など、監視中の全領域の内外を再問い合わせする。
+    func requestStateForAllMonitoredRegions() {
+        for region in manager.monitoredRegions {
+            manager.requestState(for: region)
+        }
+        refreshMonitoredCount()
+    }
+
+    private func refreshMonitoredCount() {
+        monitoredRegionCount = manager.monitoredRegions.count
     }
 
     private func startOrUpdate(reminder: Reminder) {
@@ -94,8 +113,15 @@ final class LocationMonitor: NSObject, ObservableObject {
     private func handleEnter(identifier: String) {
         guard let reminder = reminderLookup[identifier] else { return }
         guard !notifiedWhileInside.contains(identifier) else { return }
-        notifiedWhileInside.insert(identifier)
-        notifier.postApproachNotification(for: reminder)
+        // 成功するまでフラグを立てない（失敗時は再試行可能）
+        notifier.postApproachNotification(for: reminder) { [weak self] success, errorMessage in
+            guard let self else { return }
+            if success {
+                self.notifiedWhileInside.insert(identifier)
+            } else {
+                self.lastErrorMessage = errorMessage ?? "通知の送信に失敗しました。"
+            }
+        }
     }
 }
 
@@ -103,7 +129,7 @@ extension LocationMonitor: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
             self.authorizationStatus = manager.authorizationStatus
-            // 許可が付いたら再同期は呼び出し側（App）でも行う
+            self.refreshMonitoredCount()
         }
     }
 
@@ -130,6 +156,13 @@ extension LocationMonitor: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
         Task { @MainActor in
             self.lastErrorMessage = "位置の監視を開始できませんでした。"
+            self.refreshMonitoredCount()
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
+        Task { @MainActor in
+            self.refreshMonitoredCount()
         }
     }
 }

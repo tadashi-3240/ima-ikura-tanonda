@@ -32,11 +32,14 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 ## 第3段階（現行）の振る舞い
 
 1. 予定登録時に `notifyDistanceMeters`（初期は設定のデフォルト、通常 1000）で円形領域を監視開始
-2. 進入（または登録時点ですでに内側）でローカル通知: タイトル「忘れていたでしょう？」／本文「{用事}予定ですよ！」／音 `piroriron.caf`
-3. 削除・手動完了で監視解除。距離は予定ごと・設定のデフォルトで変更可
-4. **正確な距離は保証しない**（設定に明記）
-5. ビルド識別: `build: stage3-geo-1`
-6. 音の再生成: `python3 scripts/generate_piroriron_sound.py`（ffmpeg 必要）
+2. 進入（または登録時点ですでに内側）でローカル通知: タイトル「忘れていたでしょう？」／本文「{用事}予定ですよ！」／音 `piroriron.caf`（無ければ `.default`）
+3. 通知は `UNUserNotificationCenter.add` 成功後のみ `notifiedWhileInside` に記録（失敗時は再試行可）
+4. フォアグラウンド復帰（`scenePhase == .active`）で `resyncMonitoring` ＋全 region の `requestState`
+5. `Info.plist` に `UIBackgroundModes` = `location`（領域監視の信頼性。常時 GPS は使わない）
+6. 削除・手動完了で監視解除。距離は予定ごと・設定のデフォルトで変更可
+7. **正確な距離は保証しない**／iOS の進入検知は数分遅れることがある（設定に明記）
+8. ビルド識別: `build: stage3-geo-2`
+9. 音の再生成: `python3 scripts/generate_piroriron_sound.py`（ffmpeg 必要）
 
 ### やらない（未実装）
 

@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct WasureteitaDeshouApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     @StateObject private var draftStore: DraftUtteranceStore
     @StateObject private var notifySettings: AppNotifySettings
     @StateObject private var locationMonitor: LocationMonitor
@@ -26,9 +28,19 @@ struct WasureteitaDeshouApp: App {
                 .environmentObject(locationMonitor)
                 .environmentObject(reminderStore)
                 .onAppear {
-                    locationMonitor.refreshAuthorizationStatus()
-                    reminderStore.resyncMonitoring()
+                    refreshLocationMonitoring()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        refreshLocationMonitoring()
+                    }
                 }
         }
+    }
+
+    private func refreshLocationMonitoring() {
+        locationMonitor.refreshAuthorizationStatus()
+        reminderStore.resyncMonitoring()
+        locationMonitor.requestStateForAllMonitoredRegions()
     }
 }

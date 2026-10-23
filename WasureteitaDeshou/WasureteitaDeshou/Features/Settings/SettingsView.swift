@@ -5,11 +5,13 @@ struct SettingsView: View {
     @EnvironmentObject private var locationMonitor: LocationMonitor
     @EnvironmentObject private var reminderStore: ReminderStore
 
+    @State private var testNotifyMessage: String?
+
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage2-candidates-1")
+                    Text("build: stage3-geo-2")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -44,16 +46,30 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("位置情報") {
                         Text(locationStatusLabel)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(locationStatusColor)
+                    }
+
+                    LabeledContent("監視中の場所") {
+                        Text("\(locationMonitor.monitoredRegionCount) 件")
                             .font(.system(size: 16))
                             .foregroundStyle(.secondary)
                     }
-                    Button("位置情報の許可を求める") {
+
+                    if locationMonitor.authorizationStatus != .authorizedAlways {
+                        Text("バックグラウンドで近づいたことを確実に知らせるには、位置情報を「常に」にしてください。「利用中のみ」だとアプリを閉じているときの進入検知が弱くなります。")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.orange)
+                            .padding(.vertical, 4)
+                    }
+
+                    Button("位置情報を「常に」にする") {
                         locationMonitor.requestWhenInUse()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                             locationMonitor.requestAlways()
                         }
                     }
-                    .font(.system(size: 17))
+                    .font(.system(size: 17, weight: .semibold))
 
                     Button("通知の許可を求める") {
                         Task {
@@ -62,10 +78,29 @@ struct SettingsView: View {
                     }
                     .font(.system(size: 17))
 
-                    Button("監視を再同期") {
-                        reminderStore.resyncMonitoring()
+                    Button("テスト通知を送る") {
+                        ReminderNotifier().postTestNotification { success, errorMessage in
+                            if success {
+                                testNotifyMessage = "テスト通知を送りました。"
+                            } else {
+                                testNotifyMessage = errorMessage ?? "テスト通知に失敗しました。"
+                            }
+                        }
                     }
                     .font(.system(size: 17))
+
+                    Button("圏内を再判定") {
+                        reminderStore.resyncMonitoring()
+                        locationMonitor.requestStateForAllMonitoredRegions()
+                        testNotifyMessage = "監視を再同期し、圏内かどうかを問い合わせました。"
+                    }
+                    .font(.system(size: 17))
+
+                    if let msg = testNotifyMessage {
+                        Text(msg)
+                            .font(.system(size: 15))
+                            .foregroundStyle(.secondary)
+                    }
 
                     if let err = locationMonitor.lastErrorMessage {
                         Text(err)
@@ -73,10 +108,10 @@ struct SettingsView: View {
                             .foregroundStyle(.red)
                     }
                 } header: {
-                    Text("権限")
+                    Text("権限・動作確認")
                         .font(.system(size: 16, weight: .semibold))
                 } footer: {
-                    Text("バックグラウンドでも知らせるには、位置情報を「常に」にしてください。システム設定から変更することもできます。")
+                    Text("バックグラウンドでも知らせるには、設定アプリでこのアプリの位置情報を「常に」にしてください。iOS の領域監視（ジオフェンス）は、進入・退出の検知に数分かかることがあります。すぐ反応しない場合は「圏内を再判定」を試すか、しばらく待ってください。")
                         .font(.system(size: 14))
                 }
 
@@ -101,11 +136,20 @@ struct SettingsView: View {
     private var locationStatusLabel: String {
         switch locationMonitor.authorizationStatus {
         case .authorizedAlways: return "常に許可"
-        case .authorizedWhenInUse: return "利用中のみ"
+        case .authorizedWhenInUse: return "利用中のみ（常に推奨）"
         case .denied: return "拒否"
         case .restricted: return "制限あり"
         case .notDetermined: return "未設定"
         @unknown default: return "不明"
+        }
+    }
+
+    private var locationStatusColor: Color {
+        switch locationMonitor.authorizationStatus {
+        case .authorizedAlways: return .secondary
+        case .authorizedWhenInUse: return .orange
+        case .denied, .restricted: return .red
+        default: return .secondary
         }
     }
 }

@@ -26,6 +26,10 @@
 	<string>近くの店舗を探すため、また指定した場所に近づいたことを知らせるために、利用中の位置情報を使います。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>アプリを開いていないときでも、登録した場所に近づいたらお知らせするために位置情報を使います。正確な距離は保証しません。</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
