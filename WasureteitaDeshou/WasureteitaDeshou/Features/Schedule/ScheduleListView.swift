@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 登録済み予定の一覧（簡易編集・削除・手動完了・通知距離）。
+/// 登録済み予定の一覧（簡易編集・削除・手動完了・通知距離）。手動完了は履歴へ。
 struct ScheduleListView: View {
     @EnvironmentObject private var reminderStore: ReminderStore
     @State private var editing: Reminder?
@@ -50,6 +50,8 @@ struct ScheduleListView: View {
             .sheet(item: $editing) { reminder in
                 ReminderEditView(reminder: reminder) { updated in
                     reminderStore.update(updated)
+                } onComplete: {
+                    reminderStore.complete(id: reminder.id)
                 } onDelete: {
                     reminderStore.delete(id: reminder.id)
                 }
@@ -90,11 +92,13 @@ private struct ReminderEditView: View {
     @State private var notifyDistance: Int
     let original: Reminder
     let onSave: (Reminder) -> Void
+    let onComplete: () -> Void
     let onDelete: () -> Void
 
     init(
         reminder: Reminder,
         onSave: @escaping (Reminder) -> Void,
+        onComplete: @escaping () -> Void,
         onDelete: @escaping () -> Void
     ) {
         original = reminder
@@ -102,6 +106,7 @@ private struct ReminderEditView: View {
         _task = State(initialValue: reminder.task)
         _notifyDistance = State(initialValue: AppNotifySettings.clamp(reminder.notifyDistanceMeters))
         self.onSave = onSave
+        self.onComplete = onComplete
         self.onDelete = onDelete
     }
 
@@ -130,7 +135,12 @@ private struct ReminderEditView: View {
                     Text("近づいたら通知")
                 }
                 Section {
-                    Button("手動で完了（監視も解除）", role: .destructive) {
+                    Button("完了して履歴へ") {
+                        onComplete()
+                        dismiss()
+                    }
+                    .font(.system(size: 18))
+                    Button("削除（履歴に残さない）", role: .destructive) {
                         onDelete()
                         dismiss()
                     }

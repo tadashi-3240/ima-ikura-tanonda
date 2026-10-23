@@ -12,49 +12,46 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | モジュール | 責務 | 段階 |
 |---|---|---|
 | **Features/Registration** | テキスト入力 → 内容確認 → 検索 phase | 1〜2 |
-| **Features/Schedule** | 予定一覧・編集・削除・通知距離 | 2〜3 |
-| **Features/Settings** | 通知距離デフォルト・権限・距離非保証の説明 | 3 |
-| **Features/History** | 履歴 | 4（枠のみ） |
+| **Features/Schedule** | 予定一覧・編集・削除・手動完了（履歴へ） | 2〜4 |
+| **Features/History** | 履歴表示・ワンタップ再登録 | 4 |
+| **Features/Settings** | 通知距離・権限・距離／滞在非保証の説明 | 3〜4 |
 | **Services/PlaceSearch** | MapKit 検索 | 2 |
-| **Services/LocationMonitor** | `CLCircularRegion` 監視 | 3 |
+| **Services/LocationMonitor** | 接近＋滞在の `CLCircularRegion`、限定的位置更新 | 3〜4 |
 | **Services/ReminderNotifier** | ローカル通知＋`piroriron.caf` | 3 |
 | **Services/AppNotifySettings** | デフォルト距離 300/500/1000 | 3 |
-| **Services/ReminderStore** | 永続化＋監視同期 | 2〜3 |
+| **Services/ReminderStore** | 予定・履歴の永続化＋監視同期 | 2〜4 |
 
 ## 権限
 
 | 権限 | タイミング |
 |---|---|
 | 位置 When In Use | 店舗検索・地図 |
-| 位置 Always | 予定登録時の説明シート／設定。バックグラウンド接近通知に推奨 |
+| 位置 Always | 予定登録時の説明シート／設定。BG 接近・滞在に推奨 |
 | 通知 | 同上 |
 
-## 第3段階（現行）の振る舞い
+## 第4段階（現行）の振る舞い
 
-1. 予定登録時に `notifyDistanceMeters`（初期は設定のデフォルト、通常 1000）で円形領域を監視開始
-2. 進入（または登録時点ですでに内側）でローカル通知: タイトル「忘れていたでしょう？」／本文「{用事}予定ですよ！」／音 `piroriron.caf`（無ければ `.default`）
-3. 通知は `UNUserNotificationCenter.add` 成功後のみ `notifiedWhileInside` に記録（失敗時は再試行可）
-4. フォアグラウンド復帰（`scenePhase == .active`）で `resyncMonitoring` ＋全 region の `requestState`
-5. `Info.plist` に `UIBackgroundModes` = `location`（領域監視の信頼性。常時 GPS は使わない）
-6. 削除・手動完了で監視解除。距離は予定ごと・設定のデフォルトで変更可
-7. **正確な距離は保証しない**／iOS の進入検知は数分遅れることがある（設定に明記）
-8. ビルド識別: `build: stage3-geo-3`
-9. フォアグラウンド表示: `AppDelegate` が `UNUserNotificationCenterDelegate.willPresent` で `[.banner, .sound, .list]` を返す（`trigger: nil` でも前面時にバナーが出る）
-10. 音の再生成: `python3 scripts/generate_piroriron_sound.py`（ffmpeg 必要）
+1. 予定ごとに **接近領域**（`notifyDistanceMeters`）と **滞在領域**（約 75m）を監視
+2. 接近進入でローカル通知（第3と同じ）。退出で再通知フラグ解除
+3. 滞在領域に進入したら計測開始。滞在中のみ限定的な位置更新（常時 GPS は使わない）
+4. 約1分滞在で自動解除 → 履歴へ。監視停止。**再通知しない**
+5. 手動完了も履歴へ。削除は履歴に残さない。編集・削除の既存操作は維持
+6. 履歴表示: 登録日時・店舗名・用事・解除日時。ワンタップ再登録で監視再開
+7. **正確な距離は保証しない**／**バックグラウンドで正確な1分は保証できない**（設定に明記）
+8. ビルド識別: `build: stage4-dwell-1`
 
 ### やらない（未実装）
 
-- 第4: 滞在による自動解除・履歴本実装
 - 第5: AVSpeech 読み上げ本実装
 
 ## 主要パス
 
 ```
 WasureteitaDeshou/WasureteitaDeshou/
+├── Models/ReminderHistoryItem.swift
 ├── Services/LocationMonitor.swift
-├── Services/ReminderNotifier.swift
-├── Services/AppNotifySettings.swift
-├── Resources/Sounds/piroriron.caf
-└── Features/Settings/...
-WasureteitaDeshou/scripts/generate_piroriron_sound.py
+├── Services/ReminderStore.swift
+├── Features/History/HistoryView.swift
+├── Features/Settings/...
+└── Resources/Sounds/piroriron.caf
 ```

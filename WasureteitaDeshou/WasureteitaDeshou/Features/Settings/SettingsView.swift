@@ -13,7 +13,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage3-geo-3")
+                    Text("build: stage4-dwell-1")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -58,8 +58,14 @@ struct SettingsView: View {
                             .foregroundStyle(notificationStatusColor)
                     }
 
-                    LabeledContent("監視中の場所") {
+                    LabeledContent("監視中の領域") {
                         Text("\(locationMonitor.monitoredRegionCount) 件")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    LabeledContent("滞在計測中") {
+                        Text("\(locationMonitor.dwellTrackingCount) 件")
                             .font(.system(size: 16))
                             .foregroundStyle(.secondary)
                     }
@@ -133,7 +139,17 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Text("履歴の保存とワンタップ再登録は第4段階です。音声での読み上げは第5段階で検証します（いまは通知音＋文字が基本です）。")
+                    Text("店舗付近（目安 50〜100m）に約1分滞在すると、予定を自動解除して履歴へ移し、同じ予定は再通知しません。領域の進入・退出と、滞在中だけの限定的な位置更新で判定します。バックグラウンドでは正確な1分を保証できません（アプリが起きていないと計測が遅れることがあります）。")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                } header: {
+                    Text("自動解除（滞在）")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+
+                Section {
+                    Text("音声での読み上げは第5段階で検証します（いまは通知音＋文字が基本です）。未実装を実装済みとはしません。")
                         .font(.system(size: 16))
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
