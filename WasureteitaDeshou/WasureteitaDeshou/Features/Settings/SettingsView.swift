@@ -15,7 +15,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage4-dedupe-1")
+                    Text("build: stage5-speech-1")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -207,13 +207,25 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Text("音声での読み上げは第5段階で検証します（いまは通知音＋文字が基本です）。未実装を実装済みとはしません。")
-                        .font(.system(size: 16))
+                    Toggle("接近時に読み上げる", isOn: $notifySettings.speechEnabled)
+                        .font(.system(size: 18, weight: .semibold))
+
+                    Text("アプリが前面にあるとき、接近通知の表示に合わせて「忘れていたでしょう？○○予定ですよ！」を読み上げます（既定はオン）。バックグラウンドやロック画面では、iOS の制約で読み上げは保証できません。その場合は通知音と文字が基本です。")
+                        .font(.system(size: 15))
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
+
+                    Button("読み上げテスト") {
+                        ApproachSpeechSynthesizer.shared.speakTest()
+                        testNotifyMessage = "読み上げを再生しました（設定のオン／オフに関係なくテストします）。"
+                    }
+                    .font(.system(size: 17, weight: .semibold))
                 } header: {
-                    Text("今後の予定")
+                    Text("音声読み上げ")
                         .font(.system(size: 16, weight: .semibold))
+                } footer: {
+                    Text("クラウド音声合成は使いません。端末の AVSpeechSynthesizer（日本語）のみです。")
+                        .font(.system(size: 14))
                 }
             }
             .navigationTitle("設定")

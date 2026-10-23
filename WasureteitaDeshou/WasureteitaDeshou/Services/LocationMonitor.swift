@@ -1,6 +1,7 @@
 import CoreLocation
 import Foundation
 import Combine
+import UIKit
 
 /// 店舗付近の滞在判定（目安 50〜100m・約1分）。領域監視＋必要時のみ限定的な位置更新。
 enum DwellConfig {
@@ -189,6 +190,12 @@ final class LocationMonitor: NSObject, ObservableObject {
                 // 失敗時のみ解除して再試行可
                 self.clearNotifiedWhileInside(identifier)
                 self.lastErrorMessage = errorMessage ?? "通知の送信に失敗しました。"
+                return
+            }
+            // 前面は AppDelegate.willPresent が読み上げる（二重読み上げ防止）。
+            // 非アクティブ／BG 起床時のみここで試す（成功は保証しない — ApproachSpeechSynthesizer コメント参照）。
+            if UIApplication.shared.applicationState != .active {
+                ApproachSpeechSynthesizer.shared.speakApproachIfEnabled(task: reminder.task)
             }
         }
     }

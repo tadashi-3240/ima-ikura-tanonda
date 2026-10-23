@@ -14,13 +14,14 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | **Features/Registration** | テキスト入力 → 内容確認 → 店舗検索／自宅 | 1〜2+自宅 |
 | **Features/Schedule** | 予定一覧・編集・削除・手動完了（履歴へ） | 2〜4 |
 | **Features/History** | 履歴表示・ワンタップ再登録 | 4 |
-| **Features/Settings** | 通知距離・権限・自宅・**保存した場所**・距離／滞在非保証 | 3〜4+自宅+呼び名 |
+| **Features/Settings** | 通知距離・権限・自宅・保存した場所・**読み上げ**・距離／滞在非保証 | 3〜5 |
 | **Services/PlaceSearch** | MapKit 検索＋SavedPlace を候補先頭へ | 2+places |
 | **Services/HomePlaceStore** | 自宅の端末内永続化 | 自宅 |
 | **Services/SavedPlaceStore** | 登録済み場所の呼び名（UserDefaults） | places |
 | **Services/LocationMonitor** | 接近＋滞在の `CLCircularRegion`、限定的位置更新 | 3〜4 |
 | **Services/ReminderNotifier** | ローカル通知＋`piroriron.caf` | 3 |
-| **Services/AppNotifySettings** | デフォルト距離 300/500/1000 | 3 |
+| **Services/ApproachSpeechSynthesizer** | `AVSpeechSynthesizer` 日本語読み上げ（前面向け） | 5 |
+| **Services/AppNotifySettings** | デフォルト距離 300/500/1000・読み上げ ON/OFF | 3〜5 |
 | **Services/ReminderStore** | 予定・履歴の永続化＋監視同期 | 2〜4 |
 
 ## 権限
@@ -30,6 +31,16 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | 位置 When In Use | 店舗検索・地図・**自宅のいまの位置** |
 | 位置 Always | 予定登録時の説明シート／設定。BG 接近・滞在に推奨 |
 | 通知 | 同上 |
+| マイク／Speech 認識 | **不要**（キーボード音声入力に委ねる。読み上げは TTS のみ） |
+
+## 第5段階（音声読み上げ / stage5-speech-1）
+
+1. `ApproachSpeechSynthesizer`（`AVSpeechSynthesizer`、`ja-JP`）で「忘れていたでしょう？○○予定ですよ！」
+2. 設定「接近時に読み上げる」（**既定 ON**）＋「読み上げテスト」
+3. **フォアグラウンドの確実な経路**: `AppDelegate.userNotificationCenter(_:willPresent:)` で通知表示時に読み上げ
+4. 非アクティブ時の接近進入では `LocationMonitor` からも試すが **成功は保証しない**
+5. **バックグラウンド／ロック画面**: iOS 制約で自由文 TTS は保証できない。`UIBackgroundModes=audio` 迂回はしない。**通知音＋文字が基本**
+6. ビルド識別: `build: stage5-speech-1`
 
 ## 接近通知の重複抑止（stage4-dedupe-1）
 
@@ -37,7 +48,6 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 2. `requestState` は `sync` 末尾の一括のみ（領域 start ごと／active 時の二重呼び出しをやめる）
 3. 通知 request identifier は安定 ID `approach-{reminderId}`（投稿前に同 ID を remove）
 4. `notifiedWhileInside` を UserDefaults に短く永続化（退出／圏外でクリア）。Run し直しても圏内連打を抑える
-5. ビルド識別: `build: stage4-dedupe-1`
 
 ## 呼び名で場所を覚える（stage4-places-1）
 
@@ -62,8 +72,8 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 
 ### やらない（未実装）
 
-- ログイン／クラウド同期
-- 第5: AVSpeech 読み上げ本実装
+- ログイン／クラウド同期／クラウド TTS
+- BG／ロックでの読み上げ保証（実装済みとしない）
 
 ## 主要パス
 
@@ -73,8 +83,11 @@ WasureteitaDeshou/WasureteitaDeshou/
 ├── Models/SavedPlace.swift
 ├── Services/HomePlaceStore.swift
 ├── Services/SavedPlaceStore.swift
+├── Services/ApproachSpeechSynthesizer.swift
 ├── Features/Settings/HomePlaceSettingsView.swift
 ├── Features/Settings/SavedPlacesSettingsView.swift
+├── Features/Settings/SettingsView.swift
+├── App/AppDelegate.swift
 ├── Features/Registration/SimpleUtteranceConfirmView.swift
 └── Resources/Sounds/piroriron.caf
 ```
