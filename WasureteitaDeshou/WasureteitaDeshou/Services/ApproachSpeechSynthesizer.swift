@@ -22,7 +22,8 @@ final class ApproachSpeechSynthesizer: NSObject {
     }
 
     /// 端末に入っている日本語（`ja` / `ja-JP`）の声。無いものはここに出ない。
-    static func japaneseVoices() -> [AVSpeechSynthesisVoice] {
+    /// 声カタログの参照のみでインスタンス状態を触らないため `nonisolated`（`SpeechVoiceStyle.availableStyles` など MainActor 外から呼べる）。
+    nonisolated static func japaneseVoices() -> [AVSpeechSynthesisVoice] {
         AVSpeechSynthesisVoice.speechVoices().filter { voice in
             let lang = voice.language.lowercased()
             return lang == "ja" || lang.hasPrefix("ja-") || lang.hasPrefix("ja_")
