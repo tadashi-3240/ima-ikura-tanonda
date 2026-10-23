@@ -8,7 +8,8 @@ final class AppNotifySettings: ObservableObject {
         static let defaultDistance = "settings.defaultNotifyDistanceMeters"
     }
 
-    static let allowedDistances = [300, 500, 1000]
+    /// 純粋な定数・関数。Sendable モデルからも安全に呼べるよう MainActor から外す。
+    nonisolated static let allowedDistances = [300, 500, 1000]
 
     @Published var defaultNotifyDistanceMeters: Int {
         didSet {
@@ -26,7 +27,7 @@ final class AppNotifySettings: ObservableObject {
         defaultNotifyDistanceMeters = stored == 0 ? 1000 : Self.clamp(stored)
     }
 
-    static func clamp(_ meters: Int) -> Int {
+    nonisolated static func clamp(_ meters: Int) -> Int {
         if allowedDistances.contains(meters) { return meters }
         return 1000
     }
