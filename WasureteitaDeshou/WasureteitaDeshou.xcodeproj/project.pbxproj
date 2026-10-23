@@ -31,6 +31,9 @@
 		A10000000000000000000019 /* ReminderNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ReminderNotifier.swift */; };
 		A1000000000000000000001A /* LocationMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* LocationMonitor.swift */; };
 		A1000000000000000000001B /* LocationNotifyPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* LocationNotifyPermissionView.swift */; };
+		A1000000000000000000001F /* HomePlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* HomePlace.swift */; };
+		A10000000000000000000020 /* HomePlaceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* HomePlaceStore.swift */; };
+		A10000000000000000000021 /* HomePlaceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* HomePlaceSettingsView.swift */; };
 		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Assets.xcassets */; };
 		A1000000000000000000001C /* piroriron.caf in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* piroriron.caf */; };
 /* End PBXBuildFile section */
@@ -63,6 +66,9 @@
 		A2000000000000000000001A /* LocationMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMonitor.swift; sourceTree = "<group>"; };
 		A2000000000000000000001B /* LocationNotifyPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationNotifyPermissionView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001C /* piroriron.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = piroriron.caf; sourceTree = "<group>"; };
+		A2000000000000000000001F /* HomePlace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePlace.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* HomePlaceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePlaceStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* HomePlaceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePlaceSettingsView.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* WasureteitaDeshou.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WasureteitaDeshou.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -158,6 +164,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000005 /* SettingsView.swift */,
+				A20000000000000000000021 /* HomePlaceSettingsView.swift */,
 				A2000000000000000000001B /* LocationNotifyPermissionView.swift */,
 			);
 			path = Settings;
@@ -179,6 +186,7 @@
 				A2000000000000000000000E /* PlaceCandidate.swift */,
 				A2000000000000000000000F /* Reminder.swift */,
 				A2000000000000000000001E /* ReminderHistoryItem.swift */,
+				A2000000000000000000001F /* HomePlace.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -193,6 +201,7 @@
 				A20000000000000000000018 /* AppNotifySettings.swift */,
 				A20000000000000000000019 /* ReminderNotifier.swift */,
 				A2000000000000000000001A /* LocationMonitor.swift */,
+				A20000000000000000000020 /* HomePlaceStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -307,6 +316,9 @@
 				A10000000000000000000019 /* ReminderNotifier.swift in Sources */,
 				A1000000000000000000001A /* LocationMonitor.swift in Sources */,
 				A1000000000000000000001B /* LocationNotifyPermissionView.swift in Sources */,
+				A1000000000000000000001F /* HomePlace.swift in Sources */,
+				A10000000000000000000020 /* HomePlaceStore.swift in Sources */,
+				A10000000000000000000021 /* HomePlaceSettingsView.swift in Sources */,
 				A10000000000000000000014 /* PlaceResolveView.swift in Sources */,
 				A10000000000000000000015 /* PlaceCandidateListView.swift in Sources */,
 				A10000000000000000000016 /* MapPlacePickerView.swift in Sources */,

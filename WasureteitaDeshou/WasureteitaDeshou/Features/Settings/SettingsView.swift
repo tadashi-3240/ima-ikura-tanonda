@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject private var notifySettings: AppNotifySettings
     @EnvironmentObject private var locationMonitor: LocationMonitor
     @EnvironmentObject private var reminderStore: ReminderStore
+    @EnvironmentObject private var homeStore: HomePlaceStore
 
     @State private var testNotifyMessage: String?
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
@@ -13,7 +14,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage4-dwell-1")
+                    Text("build: stage4-home-1")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -26,6 +27,35 @@ struct SettingsView: View {
                 } header: {
                     Text("入力について")
                         .font(.system(size: 16, weight: .semibold))
+                }
+
+                Section {
+                    NavigationLink {
+                        HomePlaceSettingsView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("自宅を設定")
+                                .font(.system(size: 18, weight: .semibold))
+                            if let home = homeStore.home {
+                                Text(home.address.isEmpty
+                                     ? "\(home.name)（位置あり）"
+                                     : "\(home.name) — \(home.address)")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("未設定。「帰ったら洗濯」などの用事に使います。")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("自宅")
+                        .font(.system(size: 16, weight: .semibold))
+                } footer: {
+                    Text("店舗だけでなく自宅を場所にして、自分用の用事を通知できます。データは端末内のみです。")
+                        .font(.system(size: 14))
                 }
 
                 Section {
@@ -246,4 +276,5 @@ struct SettingsView: View {
         .environmentObject(AppNotifySettings())
         .environmentObject(monitor)
         .environmentObject(ReminderStore(locationMonitor: monitor))
+        .environmentObject(HomePlaceStore())
 }

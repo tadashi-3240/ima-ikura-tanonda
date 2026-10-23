@@ -5,6 +5,10 @@ enum UtteranceParser {
     static func parse(_ text: String) -> ParsedUtterance {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        if let home = parseHomeUtterance(trimmed) {
+            return home
+        }
+
         if let split = split(by: "で", in: trimmed), !split.place.isEmpty, !split.task.isEmpty {
             return ParsedUtterance(rawText: trimmed, placePhrase: split.place, taskPhrase: split.task)
         }
@@ -27,6 +31,86 @@ enum UtteranceParser {
             placePhrase: "",
             taskPhrase: trimmed.isEmpty ? "用事あり" : trimmed
         )
+    }
+
+    /// 「自宅で〜」「家に着いたら〜」「帰ったら〜」など。
+    private static func parseHomeUtterance(_ text: String) -> ParsedUtterance? {
+        let homePlaceLabels = ["自宅", "うち", "家"]
+
+        // 「自宅で洗濯をする」
+        if let split = split(by: "で", in: text),
+           homePlaceLabels.contains(where: { split.place == $0 }),
+           !split.task.isEmpty {
+            return ParsedUtterance(
+                rawText: text,
+                placePhrase: "自宅",
+                taskPhrase: split.task,
+                suggestsHome: true
+            )
+        }
+
+        // 長い接頭辞を先に
+        let homePrefixes: [(prefix: String, strip: String)] = [
+            ("自宅に着いたら", "自宅に着いたら"),
+            ("うちに着いたら", "うちに着いたら"),
+            ("家に着いたら", "家に着いたら"),
+            ("家へ着いたら", "家へ着いたら"),
+            ("家に帰ったら", "家に帰ったら"),
+            ("うちに帰ったら", "うちに帰ったら"),
+            ("帰ってきたら", "帰ってきたら"),
+            ("帰宅したら", "帰宅したら"),
+            ("帰ったら", "帰ったら"),
+            ("自宅で", "自宅で"),
+            ("うちで", "うちで"),
+            ("家で", "家で"),
+            ("自宅に", "自宅に"),
+            ("うちに", "うちに"),
+            ("家に", "家に")
+        ]
+
+        for item in homePrefixes {
+            guard text.hasPrefix(item.prefix) else { continue }
+            var task = String(text.dropFirst(item.strip.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            for connector in ["で", "に", "へ", "を", "、"] {
+                if task.hasPrefix(connector) {
+                    task = String(task.dropFirst(connector.count))
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+            if task.isEmpty { task = "用事あり" }
+            return ParsedUtterance(
+                rawText: text,
+                placePhrase: "自宅",
+                taskPhrase: task,
+                suggestsHome: true
+            )
+        }
+
+        // 「洗濯をする（自宅）」のような末尾表記は手動選択に任せ、ここでは拾わない
+        if text.contains("自宅") || text.contains("家に着い") || text.contains("帰ったら") {
+            // 部分一致だがプレフィックスにならなかった → 用事は全文、場所は自宅候補
+            if text.contains("帰ったら") || text.contains("家に着い") || text.contains("帰宅") {
+                var task = text
+                for phrase in ["帰ったら", "家に着いたら", "うちに着いたら", "帰宅したら", "帰ってきたら"] {
+                    if let range = task.range(of: phrase) {
+                        task = String(task[range.upperBound...])
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        break
+                    }
+                }
+                if task.isEmpty { task = "用事あり" }
+                return ParsedUtterance(
+                    rawText: text,
+                    placePhrase: "自宅",
+                    taskPhrase: task,
+                    suggestsHome: true
+                )
+            }
+        }
+
+        return nil
     }
 
     private static func split(by separator: String, in text: String) -> (place: String, task: String)? {

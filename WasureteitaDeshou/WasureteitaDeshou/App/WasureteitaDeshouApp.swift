@@ -9,16 +9,19 @@ struct WasureteitaDeshouApp: App {
     @StateObject private var notifySettings: AppNotifySettings
     @StateObject private var locationMonitor: LocationMonitor
     @StateObject private var reminderStore: ReminderStore
+    @StateObject private var homeStore: HomePlaceStore
 
     init() {
         let draft = DraftUtteranceStore()
         let settings = AppNotifySettings()
         let monitor = LocationMonitor()
         let reminders = ReminderStore(locationMonitor: monitor)
+        let home = HomePlaceStore()
         _draftStore = StateObject(wrappedValue: draft)
         _notifySettings = StateObject(wrappedValue: settings)
         _locationMonitor = StateObject(wrappedValue: monitor)
         _reminderStore = StateObject(wrappedValue: reminders)
+        _homeStore = StateObject(wrappedValue: home)
     }
 
     var body: some Scene {
@@ -28,6 +31,7 @@ struct WasureteitaDeshouApp: App {
                 .environmentObject(notifySettings)
                 .environmentObject(locationMonitor)
                 .environmentObject(reminderStore)
+                .environmentObject(homeStore)
                 .onAppear {
                     refreshLocationMonitoring()
                 }

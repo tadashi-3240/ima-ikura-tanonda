@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 内容確認 → MapKit 検索 → 候補／地図 → 予定保存。同じタブ内の phase 切替（cover なし）。
+/// 内容確認 → 場所の決め方（店舗検索／自宅）→ 候補／地図 → 予定保存。
 struct SimpleUtteranceConfirmView: View {
     let rawText: String
     var onBack: () -> Void
@@ -9,18 +9,21 @@ struct SimpleUtteranceConfirmView: View {
     @EnvironmentObject private var draftStore: DraftUtteranceStore
     @EnvironmentObject private var notifySettings: AppNotifySettings
     @EnvironmentObject private var locationMonitor: LocationMonitor
+    @EnvironmentObject private var homeStore: HomePlaceStore
 
     @StateObject private var locationProvider = UserLocationProvider()
 
     @State private var placeText: String
     @State private var taskText: String
+    @State private var suggestsHome: Bool
     @State private var phase: Phase = .review
     @State private var candidates: [PlaceCandidate] = []
     @State private var selected: PlaceCandidate?
     @State private var errorMessage: String?
     @State private var showPermissionSheet = false
     @State private var pendingSaveAfterPermission = false
-    @State private var didAutoSearch = false
+    @State private var isResolvingHome = false
+    @State private var homeHintMessage: String?
 
     private let search = PlaceSearchService()
 
@@ -39,6 +42,7 @@ struct SimpleUtteranceConfirmView: View {
         let parsed = UtteranceParser.parse(rawText)
         _placeText = State(initialValue: parsed.placePhrase)
         _taskText = State(initialValue: parsed.taskPhrase)
+        _suggestsHome = State(initialValue: parsed.suggestsHome)
     }
 
     var body: some View {
@@ -83,25 +87,6 @@ struct SimpleUtteranceConfirmView: View {
             }
             .environmentObject(locationMonitor)
         }
-        .onAppear {
-            autoStartSearchIfNeeded()
-        }
-    }
-
-    /// 次へ直後は自動で MapKit 検索（ワンクッション不要）
-    private func autoStartSearchIfNeeded() {
-        guard !didAutoSearch else { return }
-        guard phase == .review else { return }
-        didAutoSearch = true
-        let place = placeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if place.isEmpty {
-            // 場所なし → 地図へ（用事だけある場合）
-            if !taskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                phase = .map
-            }
-            return
-        }
-        startSearch()
     }
 
     private var phaseTitle: String {
@@ -117,7 +102,7 @@ struct SimpleUtteranceConfirmView: View {
     private var reviewContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage4-dwell-1")
+                Text("build: stage4-home-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -136,20 +121,32 @@ struct SimpleUtteranceConfirmView: View {
                     Text("場所")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.secondary)
-                    TextField("例：金古のセブンイレブン", text: $placeText)
+                    TextField("例：金古のセブンイレブン / 自宅", text: $placeText)
                         .font(.system(size: 22))
                         .textFieldStyle(.roundedBorder)
-                        .disabled(phase == .searching)
+                        .disabled(phase == .searching || isResolvingHome)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("用事")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.secondary)
-                    TextField("例：牛乳を買う", text: $taskText)
+                    TextField("例：牛乳を買う / 洗濯をする", text: $taskText)
                         .font(.system(size: 22))
                         .textFieldStyle(.roundedBorder)
-                        .disabled(phase == .searching)
+                        .disabled(phase == .searching || isResolvingHome)
+                }
+
+                if suggestsHome {
+                    Text("「自宅」「帰ったら」などの言い回しなので、下の「自宅を使う」が向いています。")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+
+                if let homeHintMessage {
+                    Text(homeHintMessage)
+                        .font(.system(size: 16))
+                        .foregroundStyle(.orange)
                 }
 
                 if let errorMessage {
@@ -158,40 +155,58 @@ struct SimpleUtteranceConfirmView: View {
                         .foregroundStyle(.red)
                 }
 
-                if phase == .searching {
+                if phase == .searching || isResolvingHome {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text("お店の候補を探しています…")
+                        Text(phase == .searching ? "お店の候補を探しています…" : "自宅の位置を用意しています…")
                             .font(.system(size: 18))
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
                 } else {
-                    Text("場所を直したら、もう一度検索できます。")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
+                    Text("場所の決め方")
+                        .font(.system(size: 18, weight: .semibold))
+                        .padding(.top, 8)
 
                     Button(action: startSearch) {
-                        Text(
-                            placeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                ? "地図から場所を指定"
-                                : "もう一度検索する"
-                        )
-                        .font(.system(size: 20, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        Text("店舗を検索")
+                            .font(.system(size: 20, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color("BrandAccent"))
+                    .disabled(taskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                              || placeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    Button {
+                        Task { await useHomePlace() }
+                    } label: {
+                        Text(homeStore.isConfigured ? "自宅を使う" : "自宅を使う（未設定）")
+                            .font(.system(size: 20, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(suggestsHome ? Color("BrandAccent") : Color.gray)
                     .disabled(taskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                    if !placeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button("検索せず地図から指定") {
-                            phase = .map
-                        }
-                        .font(.system(size: 17))
-                        .frame(maxWidth: .infinity)
+                    if homeStore.isConfigured, let home = homeStore.home {
+                        Text("登録済みの自宅: \(home.name)" + (home.address.isEmpty ? "" : "（\(home.address)）"))
+                            .font(.system(size: 15))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("未設定のときは、いまの位置を自宅にするか、設定タブの「自宅を設定」から地図で指定できます。")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.secondary)
                     }
+
+                    Button("検索せず地図から指定") {
+                        phase = .map
+                    }
+                    .font(.system(size: 17))
+                    .frame(maxWidth: .infinity)
+                    .disabled(taskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                     Button(action: onBack) {
                         Text("戻る")
@@ -209,7 +224,7 @@ struct SimpleUtteranceConfirmView: View {
     private var registerConfirmContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("build: stage4-dwell-1")
+                Text("build: stage4-home-1")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -238,11 +253,8 @@ struct SimpleUtteranceConfirmView: View {
                 .disabled(selected == nil)
 
                 Button("場所を選び直す") {
-                    if !candidates.isEmpty {
-                        phase = .candidates
-                    } else {
-                        phase = .map
-                    }
+                    selected = nil
+                    phase = .review
                 }
                 .font(.system(size: 17))
                 .frame(maxWidth: .infinity)
@@ -253,7 +265,7 @@ struct SimpleUtteranceConfirmView: View {
 
     private var savedContent: some View {
         VStack(spacing: 24) {
-            Text("build: stage4-dwell-1")
+            Text("build: stage4-home-1")
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
 
@@ -292,6 +304,7 @@ struct SimpleUtteranceConfirmView: View {
 
     private func startSearch() {
         errorMessage = nil
+        homeHintMessage = nil
         let place = placeText.trimmingCharacters(in: .whitespacesAndNewlines)
         let task = taskText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !task.isEmpty else { return }
@@ -332,10 +345,46 @@ struct SimpleUtteranceConfirmView: View {
         phase = .candidates
     }
 
+    private func useHomePlace() async {
+        errorMessage = nil
+        homeHintMessage = nil
+        let task = taskText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !task.isEmpty else { return }
+
+        if let home = homeStore.home {
+            placeText = home.name
+            selected = home.asPlaceCandidate()
+            phase = .confirm
+            return
+        }
+
+        // 未設定 → その場でいまの位置を自宅にし、続けて登録確認へ
+        isResolvingHome = true
+        defer { isResolvingHome = false }
+
+        locationProvider.requestWhenInUseIfNeeded()
+        guard let coordinate = await locationProvider.currentCoordinate() else {
+            homeHintMessage = "自宅が未設定で、いまの位置も取れませんでした。設定タブの「自宅を設定」から地図で指定するか、位置情報を許可してもう一度「自宅を使う」を押してください。"
+            return
+        }
+
+        let resolved = await search.reverseGeocode(coordinate: coordinate)
+        let home = HomePlace(
+            name: "自宅",
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            address: resolved.address
+        )
+        homeStore.save(home)
+        placeText = home.name
+        selected = home.asPlaceCandidate()
+        homeHintMessage = nil
+        phase = .confirm
+    }
+
     private func saveReminder() {
         guard selected != nil else { return }
         locationMonitor.refreshAuthorizationStatus()
-        // Always 未取得なら説明シート。「あとで」でも登録自体は進める。
         if locationMonitor.authorizationStatus != .authorizedAlways {
             pendingSaveAfterPermission = true
             showPermissionSheet = true
@@ -363,10 +412,11 @@ struct SimpleUtteranceConfirmView: View {
 #Preview {
     let monitor = LocationMonitor()
     return NavigationStack {
-        SimpleUtteranceConfirmView(rawText: "金古のセブンイレブンで牛乳を買う") {}
+        SimpleUtteranceConfirmView(rawText: "帰ったら洗濯をする") {}
     }
     .environmentObject(DraftUtteranceStore())
     .environmentObject(AppNotifySettings())
     .environmentObject(monitor)
     .environmentObject(ReminderStore(locationMonitor: monitor))
+    .environmentObject(HomePlaceStore())
 }
