@@ -25,7 +25,7 @@ final class LocationMonitor: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     private let notifier = ReminderNotifier()
     private var reminderLookup: [String: Reminder] = [:]
-    /// 同じ接近領域にいるあいだの連打を防ぐ（退出でクリア）。通知成功後のみセット。
+    /// 同じ接近領域にいるあいだの連打を防ぐ（退出でクリア）。投稿前に同期的にセット。
     private var notifiedWhileInside: Set<String> = []
     /// 滞在領域に入った時刻（reminder UUID 文字列）
     private var dwellEnteredAt: [String: Date] = [:]
@@ -36,6 +36,7 @@ final class LocationMonitor: NSObject, ObservableObject {
 
     private enum PersistKeys {
         static let dwellEnteredAt = "location.dwellEnteredAt.v1"
+        static let notifiedWhileInside = "location.notifiedWhileInside.v1"
     }
 
     override init() {
@@ -46,6 +47,7 @@ final class LocationMonitor: NSObject, ObservableObject {
         // 常時 GPS は使わない。滞在計測中のみ限定的に更新する。
         manager.allowsBackgroundLocationUpdates = false
         loadDwellEnteredAt()
+        loadNotifiedWhileInside()
         refreshMonitoredCount()
         dwellTrackingCount = dwellEnteredAt.count
     }
@@ -63,7 +65,7 @@ final class LocationMonitor: NSObject, ObservableObject {
         manager.requestAlwaysAuthorization()
     }
 
-    /// 保存済み予定と監視を同期する（接近領域＋滞在領域）。
+    /// 保存済み予定と監視を同期する（接近領域＋滞在領域）。末尾で一括 requestState。
     func sync(reminders: [Reminder]) {
         reminderLookup = Dictionary(uniqueKeysWithValues: reminders.map { ($0.id.uuidString, $0) })
 
@@ -77,7 +79,7 @@ final class LocationMonitor: NSObject, ObservableObject {
             if !wanted.contains(circular.identifier) {
                 manager.stopMonitoring(for: circular)
                 let reminderKey = Self.reminderKey(fromRegionId: circular.identifier)
-                notifiedWhileInside.remove(reminderKey)
+                clearNotifiedWhileInside(reminderKey)
                 clearDwellTracking(reminderKey: reminderKey)
             }
         }
@@ -92,12 +94,14 @@ final class LocationMonitor: NSObject, ObservableObject {
         }
         refreshMonitoredCount()
         evaluateDwell(at: manager.location)
+        // 領域ごとの requestState はここに寄せる（起動時の二重問い合わせを避ける）
+        requestStateForAllMonitoredRegions()
     }
 
     func stopMonitoring(id: UUID) {
         let key = id.uuidString
         reminderLookup.removeValue(forKey: key)
-        notifiedWhileInside.remove(key)
+        clearNotifiedWhileInside(key)
         clearDwellTracking(reminderKey: key)
         for region in manager.monitoredRegions {
             let regionKey = Self.reminderKey(fromRegionId: region.identifier)
@@ -110,6 +114,7 @@ final class LocationMonitor: NSObject, ObservableObject {
     }
 
     /// フォアグラウンド復帰時など、監視中の全領域の内外を再問い合わせする。
+    /// `sync` 末尾からも呼ばれる。呼び出し側で sync と重ねないこと。
     func requestStateForAllMonitoredRegions() {
         for region in manager.monitoredRegions {
             manager.requestState(for: region)
@@ -168,17 +173,21 @@ final class LocationMonitor: NSObject, ObservableObject {
         }
 
         manager.startMonitoring(for: region)
-        manager.requestState(for: region)
+        // requestState は sync 末尾の一括呼び出しに任せる
     }
 
     private func handleApproachEnter(identifier: String) {
         guard let reminder = reminderLookup[identifier] else { return }
+        // 投稿前に同期的に「送信中／送信済み」を立て、requestState / didEnter の多重呼び出しを遮断する
         guard !notifiedWhileInside.contains(identifier) else { return }
+        notifiedWhileInside.insert(identifier)
+        persistNotifiedWhileInside()
+
         notifier.postApproachNotification(for: reminder) { [weak self] success, errorMessage in
             guard let self else { return }
-            if success {
-                self.notifiedWhileInside.insert(identifier)
-            } else {
+            if !success {
+                // 失敗時のみ解除して再試行可
+                self.clearNotifiedWhileInside(identifier)
                 self.lastErrorMessage = errorMessage ?? "通知の送信に失敗しました。"
             }
         }
@@ -204,6 +213,11 @@ final class LocationMonitor: NSObject, ObservableObject {
         guard dwellEnteredAt.removeValue(forKey: reminderKey) != nil else { return }
         persistDwellEnteredAt()
         dwellTrackingCount = dwellEnteredAt.count
+    }
+
+    private func clearNotifiedWhileInside(_ key: String) {
+        guard notifiedWhileInside.remove(key) != nil else { return }
+        persistNotifiedWhileInside()
     }
 
     private func evaluateDwell(at location: CLLocation?) {
@@ -243,7 +257,7 @@ final class LocationMonitor: NSObject, ObservableObject {
             return
         }
         clearDwellTracking(reminderKey: reminderKey)
-        notifiedWhileInside.remove(reminderKey)
+        clearNotifiedWhileInside(reminderKey)
         stopDwellLocationUpdatesIfNeeded()
         onDwellAutoClear?(uuid)
     }
@@ -282,6 +296,18 @@ final class LocationMonitor: NSObject, ObservableObject {
         dwellEnteredAt = raw.mapValues { Date(timeIntervalSince1970: $0) }
         if !dwellEnteredAt.isEmpty {
             startDwellLocationUpdatesIfNeeded()
+        }
+    }
+
+    private func persistNotifiedWhileInside() {
+        UserDefaults.standard.set(Array(notifiedWhileInside), forKey: PersistKeys.notifiedWhileInside)
+    }
+
+    private func loadNotifiedWhileInside() {
+        if let raw = UserDefaults.standard.array(forKey: PersistKeys.notifiedWhileInside) as? [String] {
+            notifiedWhileInside = Set(raw)
+        } else {
+            notifiedWhileInside = []
         }
     }
 
@@ -327,7 +353,7 @@ extension LocationMonitor: CLLocationManagerDelegate {
             if Self.isDwellIdentifier(region.identifier) {
                 self.handleDwellExit(reminderKey: Self.reminderKey(fromRegionId: region.identifier))
             } else {
-                self.notifiedWhileInside.remove(region.identifier)
+                self.clearNotifiedWhileInside(region.identifier)
             }
         }
     }
@@ -343,6 +369,8 @@ extension LocationMonitor: CLLocationManagerDelegate {
             } else if state == .outside {
                 if Self.isDwellIdentifier(region.identifier) {
                     self.handleDwellExit(reminderKey: Self.reminderKey(fromRegionId: region.identifier))
+                } else {
+                    self.clearNotifiedWhileInside(region.identifier)
                 }
             }
         }

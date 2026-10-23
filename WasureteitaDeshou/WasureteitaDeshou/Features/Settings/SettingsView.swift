@@ -15,7 +15,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage4-places-1")
+                    Text("build: stage4-dedupe-1")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -171,8 +171,8 @@ struct SettingsView: View {
                     .font(.system(size: 17))
 
                     Button("圏内を再判定") {
+                        // sync 末尾で requestState 一括（二重呼び出ししない）
                         reminderStore.resyncMonitoring()
-                        locationMonitor.requestStateForAllMonitoredRegions()
                         testNotifyMessage = "監視を再同期し、圏内かどうかを問い合わせました。"
                     }
                     .font(.system(size: 17))

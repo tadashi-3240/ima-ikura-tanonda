@@ -49,7 +49,7 @@ struct WasureteitaDeshouApp: App {
 
     private func refreshLocationMonitoring() {
         locationMonitor.refreshAuthorizationStatus()
+        // sync 末尾で requestState 一括。ここでは重ねない（二重接近通知の原因になる）
         reminderStore.resyncMonitoring()
-        locationMonitor.requestStateForAllMonitoredRegions()
     }
 }

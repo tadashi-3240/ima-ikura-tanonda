@@ -31,13 +31,20 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | 位置 Always | 予定登録時の説明シート／設定。BG 接近・滞在に推奨 |
 | 通知 | 同上 |
 
+## 接近通知の重複抑止（stage4-dedupe-1）
+
+1. `handleApproachEnter` は通知投稿の **前に** `notifiedWhileInside` を同期的に立てる（失敗時のみ解除）
+2. `requestState` は `sync` 末尾の一括のみ（領域 start ごと／active 時の二重呼び出しをやめる）
+3. 通知 request identifier は安定 ID `approach-{reminderId}`（投稿前に同 ID を remove）
+4. `notifiedWhileInside` を UserDefaults に短く永続化（退出／圏外でクリア）。Run し直しても圏内連打を抑える
+5. ビルド識別: `build: stage4-dedupe-1`
+
 ## 呼び名で場所を覚える（stage4-places-1）
 
 1. 予定確定時、場所を `SavedPlace` に upsert（約50m近傍なら名前更新）。表示名は確定時の `placeName`
 2. 自宅（`HomePlace`）は二重保存しない
 3. 店舗検索時、SavedPlace を名前部分一致で探し候補の **先頭** に載せる（MapKit が空でも SavedPlace だけで候補へ）
 4. 設定「保存した場所」で呼び名の編集・削除
-5. ビルド識別: `build: stage4-places-1`
 
 ## 自宅（stage4-home-1）
 
@@ -49,7 +56,7 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 ## 第4段階（滞在）の振る舞い
 
 1. 予定ごとに **接近領域**（`notifyDistanceMeters`）と **滞在領域**（約 75m）を監視
-2. 接近進入でローカル通知。退出で再通知フラグ解除
+2. 接近進入でローカル通知（圏内にいるあいだ1回まで）。退出／圏外で再通知フラグ解除
 3. 滞在領域進入で計測。約1分で自動解除 → 履歴。**再通知しない**
 4. **正確な距離は保証しない**／**BG で正確な1分は保証できない**
 

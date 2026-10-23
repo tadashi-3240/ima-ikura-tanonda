@@ -20,18 +20,23 @@ final class ReminderNotifier {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
-    /// 接近通知。`completion` は `UNUserNotificationCenter.add` の結果（成功時のみ true）。
+    /// 接近通知。識別子は予定ごとに安定（`approach-{uuid}`）。`completion` は add 成功時のみ true。
     func postApproachNotification(
         for reminder: Reminder,
         completion: @escaping (Bool, String?) -> Void
     ) {
+        let reminderId = reminder.id.uuidString
+        let identifier = "approach-\(reminderId)"
         let content = makeContent(
             title: "忘れていたでしょう？",
             body: "\(reminder.task)予定ですよ！",
-            reminderId: reminder.id.uuidString
+            reminderId: reminderId
         )
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        center.removeDeliveredNotifications(withIdentifiers: [identifier])
         let request = UNNotificationRequest(
-            identifier: "approach-\(reminder.id.uuidString)-\(Int(Date().timeIntervalSince1970))",
+            identifier: identifier,
             content: content,
             trigger: nil
         )
