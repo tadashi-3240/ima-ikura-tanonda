@@ -20,8 +20,8 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | **Services/SavedPlaceStore** | 登録済み場所の呼び名（UserDefaults） | places |
 | **Services/LocationMonitor** | 接近＋滞在の `CLCircularRegion`、限定的位置更新 | 3〜4 |
 | **Services/ReminderNotifier** | ローカル通知＋`piroriron.caf` | 3 |
-| **Services/ApproachSpeechSynthesizer** | `AVSpeechSynthesizer` 日本語読み上げ（前面向け） | 5 |
-| **Services/AppNotifySettings** | デフォルト距離 300/500/1000・読み上げ ON/OFF | 3〜5 |
+| **Services/ApproachSpeechSynthesizer** | `AVSpeechSynthesizer` 日本語読み上げ（若い声優先・前面向け） | 5 |
+| **Services/AppNotifySettings** | デフォルト距離・読み上げ ON/OFF・声の種類 | 3〜5 |
 | **Services/ReminderStore** | 予定・履歴の永続化＋監視同期 | 2〜4 |
 
 ## 権限
@@ -33,14 +33,17 @@ iOS 18+ / SwiftUI / iPhone専用。既存 Expo・Web とは独立し、ルート
 | 通知 | 同上 |
 | マイク／Speech 認識 | **不要**（キーボード音声入力に委ねる。読み上げは TTS のみ） |
 
-## 第5段階（音声読み上げ / stage5-speech-1）
+## 第5段階（音声読み上げ / stage5-speech-2）
 
-1. `ApproachSpeechSynthesizer`（`AVSpeechSynthesizer`、`ja-JP`）で「忘れていたでしょう？○○予定ですよ！」
-2. 設定「接近時に読み上げる」（**既定 ON**）＋「読み上げテスト」
-3. **フォアグラウンドの確実な経路**: `AppDelegate.userNotificationCenter(_:willPresent:)` で通知表示時に読み上げ
-4. 非アクティブ時の接近進入では `LocationMonitor` からも試すが **成功は保証しない**
-5. **バックグラウンド／ロック画面**: iOS 制約で自由文 TTS は保証できない。`UIBackgroundModes=audio` 迂回はしない。**通知音＋文字が基本**
-6. ビルド識別: `build: stage5-speech-1`
+1. `ApproachSpeechSynthesizer`（`AVSpeechSynthesizer`）で「忘れていたでしょう？○○予定ですよ！」
+2. `speechVoices()` から `ja`／`ja-JP` を列挙。既定は **明るい若い声**（Siri 女性 → O-ren → Hattori → Kyoko enhanced → Kyoko → `ja-JP` フォールバック）。端末に無い声はスキップ
+3. 若い声は `pitchMultiplier` 約 1.15、`rate` を default より少し上（元気め・やりすぎない）
+4. 設定「接近時に読み上げる」（**既定 ON**）＋「声の種類」（明るい若い声／標準／低め、UserDefaults）＋「読み上げテスト」
+5. **フォアグラウンドの確実な経路**: `AppDelegate.userNotificationCenter(_:willPresent:)` で通知表示時に読み上げ
+6. 非アクティブ時の接近進入では `LocationMonitor` からも試すが **成功は保証しない**
+7. **バックグラウンド／ロック画面**: iOS 制約で自由文 TTS は保証できない。`UIBackgroundModes=audio` 迂回はしない。**通知音＋文字が基本**
+8. 使える声は **iOS／端末依存**。クラウド TTS・独自音声ファイル大量同梱はしない
+9. ビルド識別: `build: stage5-speech-2`
 
 ## 接近通知の重複抑止（stage4-dedupe-1）
 

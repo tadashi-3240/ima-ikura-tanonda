@@ -15,7 +15,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("build: stage5-speech-1")
+                    Text("build: stage5-speech-2")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -215,16 +215,36 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
 
+                    if SpeechVoiceStyle.availableStyles.isEmpty {
+                        Text("この端末では日本語の読み上げ声が見つかりません。")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.orange)
+                    } else {
+                        Picker("声の種類", selection: $notifySettings.speechVoiceStyle) {
+                            ForEach(SpeechVoiceStyle.availableStyles) { style in
+                                Text(style.displayName).tag(style)
+                            }
+                        }
+                        .font(.system(size: 18))
+
+                        if !resolvedVoiceLabel.isEmpty {
+                            Text("いま使う声: \(resolvedVoiceLabel)")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     Button("読み上げテスト") {
                         ApproachSpeechSynthesizer.shared.speakTest()
                         testNotifyMessage = "読み上げを再生しました（設定のオン／オフに関係なくテストします）。"
                     }
                     .font(.system(size: 17, weight: .semibold))
+                    .disabled(SpeechVoiceStyle.availableStyles.isEmpty)
                 } header: {
                     Text("音声読み上げ")
                         .font(.system(size: 16, weight: .semibold))
                 } footer: {
-                    Text("クラウド音声合成は使いません。端末の AVSpeechSynthesizer（日本語）のみです。")
+                    Text("クラウド音声合成は使いません。端末の AVSpeechSynthesizer（日本語）のみです。使える声は iOS／端末依存です（未ダウンロードの声は候補から外れ、近い声にフォールバックします）。")
                         .font(.system(size: 14))
                 }
             }
@@ -235,6 +255,10 @@ struct SettingsView: View {
                 Task { await refreshNotificationAuthStatus() }
             }
         }
+    }
+
+    private var resolvedVoiceLabel: String {
+        ApproachSpeechSynthesizer.resolvedVoiceDisplayName(for: notifySettings.speechVoiceStyle)
     }
 
     private func refreshNotificationAuthStatus() async {

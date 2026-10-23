@@ -2,12 +2,13 @@ import Foundation
 import Combine
 
 /// 通知距離の全体デフォルト（新規予定に適用）。予定ごとの上書きも Reminder に持つ。
-/// 接近時の音声読み上げ ON/OFF もここ（既定は ON）。
+/// 接近時の音声読み上げ ON/OFF・声の種類もここ（既定は ON／明るい若い声）。
 @MainActor
 final class AppNotifySettings: ObservableObject {
     private enum Keys {
         static let defaultDistance = "settings.defaultNotifyDistanceMeters"
         static let speechEnabled = "settings.approachSpeechEnabled"
+        static let speechVoiceStyle = "settings.approachSpeechVoiceStyle"
     }
 
     /// 純粋な定数・関数。Sendable モデルからも安全に呼べるよう MainActor から外す。
@@ -19,6 +20,15 @@ final class AppNotifySettings: ObservableObject {
             return true
         }
         return UserDefaults.standard.bool(forKey: Keys.speechEnabled)
+    }
+
+    /// 声の種類（未設定＝明るい若い声）。
+    nonisolated static var speechVoiceStyleStored: SpeechVoiceStyle {
+        guard let raw = UserDefaults.standard.string(forKey: Keys.speechVoiceStyle),
+              let style = SpeechVoiceStyle(rawValue: raw) else {
+            return .brightYoung
+        }
+        return style
     }
 
     @Published var defaultNotifyDistanceMeters: Int {
@@ -39,10 +49,18 @@ final class AppNotifySettings: ObservableObject {
         }
     }
 
+    /// 読み上げの声の種類（UserDefaults 永続化）。
+    @Published var speechVoiceStyle: SpeechVoiceStyle {
+        didSet {
+            UserDefaults.standard.set(speechVoiceStyle.rawValue, forKey: Keys.speechVoiceStyle)
+        }
+    }
+
     init() {
         let stored = UserDefaults.standard.integer(forKey: Keys.defaultDistance)
         defaultNotifyDistanceMeters = stored == 0 ? 1000 : Self.clamp(stored)
         speechEnabled = Self.isSpeechEnabledStored
+        speechVoiceStyle = Self.speechVoiceStyleStored
     }
 
     nonisolated static func clamp(_ meters: Int) -> Int {
