@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { useOrders } from './src/hooks/useOrders'
+import ScheduleScreen from './src/screens/ScheduleScreen'
 import { formatYen, grandTotal, lineSubtotal, parseYenInput, remainingBudget } from './src/lib/money'
 import { parseOrderText } from './src/lib/parseOrder'
 import type { NewOrder, Order, ParsedOrder } from './src/types/order'
@@ -52,6 +53,7 @@ export default function App() {
   const [editing, setEditing] = useState<Order | null>(null)
   const [budgetOpen, setBudgetOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+  const [screen, setScreen] = useState<'orders' | 'schedule'>('orders')
 
   const submitText = () => {
     const parsed = parseOrderText(text)
@@ -73,6 +75,23 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <StatusBar style="light" />
+        <View style={styles.tabs}>
+          <Pressable
+            style={[styles.tab, screen === 'orders' && styles.tabOn]}
+            onPress={() => setScreen('orders')}
+          >
+            <Text style={[styles.tabText, screen === 'orders' && styles.tabTextOn]}>注文</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, screen === 'schedule' && styles.tabOn]}
+            onPress={() => setScreen('schedule')}
+          >
+            <Text style={[styles.tabText, screen === 'schedule' && styles.tabTextOn]}>予定</Text>
+          </Pressable>
+        </View>
+        {screen === 'schedule' ? (
+          <ScheduleScreen />
+        ) : (
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -194,6 +213,7 @@ export default function App() {
             )}
           </SafeAreaView>
         </KeyboardAvoidingView>
+        )}
 
         <ManualModal
           key={editing?.id ?? (manual ? 'manual' : 'closed')}
@@ -429,6 +449,20 @@ function BudgetModal({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 4,
+  },
+  tab: { flex: 1, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  tabOn: { backgroundColor: colors.gold },
+  tabText: { color: colors.muted, fontWeight: '700' },
+  tabTextOn: { color: colors.bg },
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingBottom: 24 },
   title: {

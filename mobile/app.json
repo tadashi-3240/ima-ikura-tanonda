@@ -24,6 +24,15 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       }
     },
-    "description": "焼肉・居酒屋・中華などで、今いくら頼んだかをすぐ確認できる、お客さん側専用の注文金額メモ。"
+    "description": "焼肉・居酒屋・中華などで、今いくら頼んだかをすぐ確認できる、お客さん側専用の注文金額メモ。",
+    "plugins": [
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "予定画面で、iPhoneのカレンダーに入っている予定を表示します。",
+          "remindersPermission": "予定画面で、iPhoneのリマインダーに入っている予定を表示します。"
+        }
+      ]
+    ]
   }
 }
