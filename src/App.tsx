@@ -2,14 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { AddOrder } from './components/AddOrder'
 import { BudgetPanel } from './components/BudgetPanel'
 import { OpeningCapture } from './components/OpeningCapture'
-import { OpeningReview } from './components/OpeningReview'
 import { OrderList } from './components/OrderList'
 import { TotalDisplay } from './components/TotalDisplay'
 import { useOrders } from './hooks/useOrders'
 import { grandTotal } from './lib/money'
-import type { NewOrder, ParsedOrder } from './types/order'
 
-type Phase = 'bulk' | 'review' | 'live'
+type Phase = 'bulk' | 'live'
 
 export default function App() {
   const {
@@ -26,8 +24,6 @@ export default function App() {
   } = useOrders()
   const [confirmReset, setConfirmReset] = useState(false)
   const [phase, setPhase] = useState<Phase>(state.orders.length > 0 ? 'live' : 'bulk')
-  const [draftItems, setDraftItems] = useState<ParsedOrder[]>([])
-  const [spoken, setSpoken] = useState('')
   const [captureResetKey, setCaptureResetKey] = useState(0)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const total = grandTotal(state.orders)
@@ -42,8 +38,6 @@ export default function App() {
 
   const resetAll = () => {
     reset()
-    setDraftItems([])
-    setSpoken('')
     setCaptureResetKey((value) => value + 1)
     setPhase('bulk')
     setConfirmReset(false)
@@ -64,29 +58,12 @@ export default function App() {
       {phase === 'bulk' ? (
         <OpeningCapture
           key={captureResetKey}
-          initialText={spoken}
           resetButton={resetButton}
-          onParsed={(items, raw) => {
-            setDraftItems(items)
-            setSpoken(raw)
-            setPhase('review')
-          }}
-          onSkip={() => setPhase('live')}
-        />
-      ) : null}
-
-      {phase === 'review' ? (
-        <OpeningReview
-          initial={draftItems}
-          spoken={spoken}
-          resetButton={resetButton}
-          onConfirm={(items: NewOrder[]) => {
+          onParsed={(items) => {
             addMany(items)
-            setDraftItems([])
-            setSpoken('')
             setPhase('live')
           }}
-          onBack={() => setPhase('bulk')}
+          onSkip={() => setPhase('live')}
         />
       ) : null}
 
