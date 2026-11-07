@@ -21,7 +21,6 @@ function toDraft(items: ParsedOrder[]): Draft[] {
 
 export function OpeningReview({ initial, spoken, resetButton, onConfirm, onBack }: Props) {
   const [drafts, setDrafts] = useState<Draft[]>(() => toDraft(initial))
-  const [adding, setAdding] = useState(false)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [error, setError] = useState('')
   const editing = drafts.find((item) => item.key === editingKey) ?? null
@@ -108,27 +107,6 @@ export function OpeningReview({ initial, spoken, resetButton, onConfirm, onBack 
             </section>
           ))}
         </div>
-        {adding ? (
-          <div className="mt-4 rounded-2xl border border-line bg-card p-4">
-            <p className="mb-3 font-semibold">品を足す</p>
-            <ManualForm
-              submitLabel="足す"
-              onSubmit={(item) => {
-                setDrafts((prev) => [...prev, { ...item, key: `${item.name}-${Date.now()}` }])
-                setAdding(false)
-              }}
-              onCancel={() => setAdding(false)}
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="mt-4 h-12 w-full rounded-2xl border border-line text-muted"
-            onClick={() => setAdding(true)}
-          >
-            品を足す
-          </button>
-        )}
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
       </div>
 
