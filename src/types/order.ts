@@ -21,3 +21,10 @@ export type ParsedOrder = {
   unitPrice: number
   quantity: number
 }
+
+export type SavedBill = {
+  id: string
+  savedAt: number
+  orders: Order[]
+  budget: number | null
+}
