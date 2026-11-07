@@ -27,7 +27,9 @@ export function HistoryScreen({ bills, onBack, onRemove }: Props) {
           >
             戻る
           </button>
-          <h1 className="px-16 text-xl font-bold tracking-wide">過去の注文</h1>
+          <h1 className="px-16 text-xl font-bold tracking-wide">
+            {selected.placeName ?? '過去の注文'}
+          </h1>
           <p className="mt-1 text-sm text-muted">{formatSavedAt(selected.savedAt)}</p>
           <p className="mt-3 font-bold tracking-tight text-gold tabular-nums text-[clamp(2.4rem,11vw,4.2rem)] leading-none">
             {formatYen(total)}
@@ -99,9 +101,12 @@ export function HistoryScreen({ bills, onBack, onRemove }: Props) {
                   className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-4 text-left"
                   onClick={() => setSelectedId(bill.id)}
                 >
-                  <div>
-                    <p className="text-sm text-muted">{formatSavedAt(bill.savedAt)}</p>
-                    <p className="mt-1 text-sm text-muted">{bill.orders.length}品</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">
+                      {bill.placeName ?? '店名なし'}
+                    </p>
+                    <p className="mt-1 text-sm text-muted">{formatSavedAt(bill.savedAt)}</p>
+                    <p className="mt-0.5 text-sm text-muted">{bill.orders.length}品</p>
                   </div>
                   <p className="text-xl font-bold text-gold tabular-nums">
                     {formatYen(grandTotal(bill.orders))}

@@ -5,6 +5,7 @@ import {
   removeOrder,
   resetOrders,
   setBudget,
+  setPlaceName,
   setQuantity,
   updateOrder,
 } from '../lib/orders'
@@ -71,6 +72,13 @@ export function useOrders() {
     [commit],
   )
 
+  const changePlaceName = useCallback(
+    (placeName: string | null) => {
+      commit((prev) => setPlaceName(prev, placeName))
+    },
+    [commit],
+  )
+
   const reset = useCallback(() => {
     commit((prev) => resetOrders(prev))
   }, [commit])
@@ -91,6 +99,7 @@ export function useOrders() {
     remove,
     update,
     changeBudget,
+    changePlaceName,
     reset,
     undo,
     canUndo,

@@ -5,7 +5,7 @@ export function createOrderId(): string {
 }
 
 export function emptyState(): AppState {
-  return { orders: [], budget: null }
+  return { orders: [], budget: null, placeName: null }
 }
 
 function sameItem(a: Pick<Order, 'name' | 'unitPrice'>, b: Pick<Order, 'name' | 'unitPrice'>): boolean {
@@ -91,6 +91,11 @@ export function setBudget(state: AppState, budget: number | null): AppState {
   return { ...state, budget: Math.max(0, budget) }
 }
 
+export function setPlaceName(state: AppState, placeName: string | null): AppState {
+  const trimmed = placeName?.trim() ?? ''
+  return { ...state, placeName: trimmed ? trimmed : null }
+}
+
 export function resetOrders(state: AppState): AppState {
-  return { ...state, orders: [] }
+  return { ...state, orders: [], placeName: null }
 }

@@ -2,15 +2,25 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { parseOrderList } from '../lib/parseOrder'
 import type { ParsedOrder } from '../types/order'
+import { PlacePicker } from './PlacePicker'
 
 type Props = {
   initialText?: string
+  placeName: string | null
+  onPlaceChange: (placeName: string | null) => void
   resetButton?: ReactNode
   onParsed: (items: ParsedOrder[], spoken: string) => void
   onSkip: () => void
 }
 
-export function OpeningCapture({ initialText = '', resetButton, onParsed, onSkip }: Props) {
+export function OpeningCapture({
+  initialText = '',
+  placeName,
+  onPlaceChange,
+  resetButton,
+  onParsed,
+  onSkip,
+}: Props) {
   const [text, setText] = useState(initialText)
   const [error, setError] = useState('')
 
@@ -30,11 +40,12 @@ export function OpeningCapture({ initialText = '', resetButton, onParsed, onSkip
         {resetButton}
         <h1 className="px-16 text-2xl font-bold tracking-wide sm:text-3xl">今いくら頼んだ？</h1>
         <p className="mt-2 text-sm text-muted">
-          最初はまとめて入れてください。あとから直せます。
+          最初に店を確認して、まとめて入れてください。
         </p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        <PlacePicker value={placeName} onChange={onPlaceChange} />
         <textarea
           value={text}
           onChange={(event) => {
@@ -45,8 +56,8 @@ export function OpeningCapture({ initialText = '', resetButton, onParsed, onSkip
           aria-label="まとめて注文"
           className="min-h-40 w-full resize-none rounded-2xl border border-line bg-card px-4 py-3 text-base leading-relaxed"
         />
-        <p className="mt-2 text-sm text-muted">「何がいくつ、いくら」を続けてどうぞ。</p>
-        {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
+        <p className="text-sm text-muted">「何がいくつ、いくら」を続けてどうぞ。</p>
+        {error ? <p className="text-sm text-danger">{error}</p> : null}
       </div>
 
       <div className="shrink-0 space-y-2 border-t border-line px-4 pt-3 pb-3">

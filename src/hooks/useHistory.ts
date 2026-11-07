@@ -9,7 +9,7 @@ export function useHistory() {
     saveHistory(bills)
   }, [bills])
 
-  const archive = useCallback((state: Pick<AppState, 'orders' | 'budget'>) => {
+  const archive = useCallback((state: Pick<AppState, 'orders' | 'budget' | 'placeName'>) => {
     if (state.orders.length === 0) return
     setBills((prev) => appendHistory(prev, state))
   }, [])

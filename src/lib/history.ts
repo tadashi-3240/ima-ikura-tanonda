@@ -23,14 +23,26 @@ function isSavedBill(value: unknown): value is SavedBill {
   const budgetOk =
     bill.budget === null ||
     (typeof bill.budget === 'number' && Number.isInteger(bill.budget) && bill.budget >= 0)
+  const placeOk =
+    bill.placeName === undefined ||
+    bill.placeName === null ||
+    typeof bill.placeName === 'string'
   return (
     typeof bill.id === 'string' &&
     typeof bill.savedAt === 'number' &&
     Number.isFinite(bill.savedAt) &&
     Array.isArray(bill.orders) &&
     bill.orders.every(isOrder) &&
-    budgetOk
+    budgetOk &&
+    placeOk
   )
+}
+
+function normalizeBill(bill: SavedBill): SavedBill {
+  return {
+    ...bill,
+    placeName: bill.placeName ?? null,
+  }
 }
 
 export function loadHistory(): SavedBill[] {
@@ -39,7 +51,7 @@ export function loadHistory(): SavedBill[] {
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isSavedBill)
+    return parsed.filter(isSavedBill).map(normalizeBill)
   } catch {
     return []
   }
@@ -49,17 +61,24 @@ export function saveHistory(bills: SavedBill[]): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(bills.slice(0, HISTORY_LIMIT)))
 }
 
-export function createSavedBill(state: Pick<AppState, 'orders' | 'budget'>, savedAt = Date.now()): SavedBill {
+export function createSavedBill(
+  state: Pick<AppState, 'orders' | 'budget' | 'placeName'>,
+  savedAt = Date.now(),
+): SavedBill {
   return {
     id: crypto.randomUUID(),
     savedAt,
     orders: state.orders.map((order) => ({ ...order })),
     budget: state.budget,
+    placeName: state.placeName?.trim() ? state.placeName.trim() : null,
   }
 }
 
 /** 先頭が新しい。注文が空なら追加しない。 */
-export function appendHistory(bills: SavedBill[], state: Pick<AppState, 'orders' | 'budget'>): SavedBill[] {
+export function appendHistory(
+  bills: SavedBill[],
+  state: Pick<AppState, 'orders' | 'budget' | 'placeName'>,
+): SavedBill[] {
   if (state.orders.length === 0) return bills
   return [createSavedBill(state), ...bills].slice(0, HISTORY_LIMIT)
 }

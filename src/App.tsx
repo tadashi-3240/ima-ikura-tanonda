@@ -4,6 +4,7 @@ import { BudgetPanel } from './components/BudgetPanel'
 import { HistoryScreen } from './components/HistoryScreen'
 import { OpeningCapture } from './components/OpeningCapture'
 import { OrderList } from './components/OrderList'
+import { PlacePicker } from './components/PlacePicker'
 import { TotalDisplay } from './components/TotalDisplay'
 import { useHistory } from './hooks/useHistory'
 import { useOrders } from './hooks/useOrders'
@@ -20,12 +21,14 @@ export default function App() {
     remove,
     update,
     changeBudget,
+    changePlaceName,
     reset,
     undo,
     canUndo,
   } = useOrders()
   const { bills, archive, remove: removeBill } = useHistory()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [editingPlace, setEditingPlace] = useState(false)
   const [phase, setPhase] = useState<Phase>(state.orders.length > 0 ? 'live' : 'bulk')
   const [returnPhase, setReturnPhase] = useState<Exclude<Phase, 'history'>>('bulk')
   const [captureResetKey, setCaptureResetKey] = useState(0)
@@ -43,6 +46,7 @@ export default function App() {
   const resetAll = () => {
     archive(state)
     reset()
+    setEditingPlace(false)
     setCaptureResetKey((value) => value + 1)
     setPhase('bulk')
     setConfirmReset(false)
@@ -78,6 +82,8 @@ export default function App() {
       {phase === 'bulk' ? (
         <OpeningCapture
           key={captureResetKey}
+          placeName={state.placeName}
+          onPlaceChange={changePlaceName}
           resetButton={
             <>
               {historyButton('bulk')}
@@ -112,6 +118,13 @@ export default function App() {
               >
                 今いくら頼んだ？
               </h1>
+              <button
+                type="button"
+                className="mt-1 text-sm text-muted underline"
+                onClick={() => setEditingPlace(true)}
+              >
+                {state.placeName ?? '店名を設定'}
+              </button>
               {compactTotal ? null : (
                 <p className="mt-1 text-sm text-muted">注文するたび、合計がわかる。</p>
               )}
@@ -151,6 +164,25 @@ export default function App() {
         />
       ) : null}
 
+      {editingPlace && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+          <div className="w-full max-w-md space-y-3 rounded-3xl border border-line bg-surface p-5">
+            <PlacePicker
+              value={state.placeName}
+              onChange={changePlaceName}
+              autoSearch={!state.placeName}
+            />
+            <button
+              type="button"
+              className="h-12 w-full rounded-2xl border border-line"
+              onClick={() => setEditingPlace(false)}
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+
       {confirmReset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
           <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-5 text-center">
@@ -159,6 +191,9 @@ export default function App() {
                 ? 'この注文を履歴に残して、新しい会計を始めますか？'
                 : '新しい会計を始めますか？'}
             </p>
+            {state.orders.length > 0 && state.placeName ? (
+              <p className="mt-2 text-sm text-muted">{state.placeName}</p>
+            ) : null}
             <div className="mt-5 flex flex-col gap-2">
               <button
                 type="button"

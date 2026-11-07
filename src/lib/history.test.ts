@@ -16,22 +16,26 @@ describe('会計履歴', () => {
     const next = appendHistory([], {
       orders: [{ id: '1', name: 'ビール', unitPrice: 650, quantity: 2 }],
       budget: null,
+      placeName: 'テスト焼肉',
     })
     expect(next).toHaveLength(1)
     expect(next[0]?.orders[0]?.name).toBe('ビール')
+    expect(next[0]?.placeName).toBe('テスト焼肉')
     saveHistory(next)
     expect(loadHistory()).toHaveLength(1)
+    expect(loadHistory()[0]?.placeName).toBe('テスト焼肉')
     expect(localStorage.getItem(HISTORY_KEY)).toBeTruthy()
   })
 
   it('空の注文は履歴に残さない', () => {
-    expect(appendHistory([], { orders: [], budget: null })).toEqual([])
+    expect(appendHistory([], { orders: [], budget: null, placeName: null })).toEqual([])
   })
 
   it('履歴を削除できる', () => {
     const bills = appendHistory([], {
       orders: [{ id: '1', name: '餃子', unitPrice: 1100, quantity: 1 }],
       budget: null,
+      placeName: null,
     })
     expect(removeHistoryBill(bills, bills[0]!.id)).toEqual([])
   })

@@ -14,6 +14,7 @@ export type NewOrder = {
 export type AppState = {
   orders: Order[]
   budget: number | null
+  placeName: string | null
 }
 
 export type ParsedOrder = {
@@ -27,4 +28,5 @@ export type SavedBill = {
   savedAt: number
   orders: Order[]
   budget: number | null
+  placeName: string | null
 }

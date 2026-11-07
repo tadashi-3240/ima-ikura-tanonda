@@ -23,7 +23,11 @@ function isAppState(value: unknown): value is AppState {
   const budgetOk =
     state.budget === null ||
     (typeof state.budget === 'number' && Number.isInteger(state.budget) && state.budget >= 0)
-  return Array.isArray(state.orders) && state.orders.every(isOrder) && budgetOk
+  const placeOk =
+    state.placeName === undefined ||
+    state.placeName === null ||
+    typeof state.placeName === 'string'
+  return Array.isArray(state.orders) && state.orders.every(isOrder) && budgetOk && placeOk
 }
 
 export function loadState(): AppState | null {
@@ -32,7 +36,10 @@ export function loadState(): AppState | null {
     if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
     if (!isAppState(parsed)) return null
-    return parsed
+    return {
+      ...parsed,
+      placeName: parsed.placeName ?? null,
+    }
   } catch {
     return null
   }
