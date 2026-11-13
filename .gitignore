@@ -25,3 +25,15 @@ mobile/expo-qr-tunnel.png
 *.njsproj
 *.sln
 *.sw?
+
+# Xcode (WasureteitaDeshou)
+xcuserdata/
+*.xcuserstate
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
